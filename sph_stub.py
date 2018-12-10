@@ -92,6 +92,66 @@ class SPH_main(object):
         plt.gca().set(xlabel='x', ylabel='y', title='Current State')
 
 
+    def W(self, p_i, p_j_list):
+        """
+        :param p_i: (object) position of particle where calculations are being performed
+        :param p_j_list: (list of objects) position of particles influencing particle i
+        :return: (np array) smoothing factor for particle i being affected by particles j
+        """
+        xi = p_i.x
+        xj = np.array([p.x for p in p_j_list])
+        r = xi - xj
+        j_list = np.sqrt(np.sum(r**2, axis=1))/ self.h
+        assert ((j_list >= 0).all()), "q must be a positive value"
+
+        w_fac = 10 / (7 * np.pi * self.h ** 2)
+        for i, q in enumerate(j_list):
+            if 0 <= q < 1:
+                j_list[i] = w_fac*(1 - 1.5*q**2 + 0.75*q**3)
+            elif 1 <= q <= 2:
+                j_list[i] = w_fac*(0.25 * (2 - q)**3)
+            else:
+                j_list[i] = 0
+        return np.array(j_list)
+
+
+    def dW(self, p_i, p_j_list):
+        """
+        :param p_i: (object) position of particle where calculations are being performed
+        :param p_j_list: (list of objects) position of particles influencing particle i
+        :return: (np array) derivative of smoothing factor for particle i being affected by particles j
+        """
+        xi = p_i.x
+        xj = np.array([p.x for p in p_j_list])
+        r = xi - xj
+        j_list = np.sqrt(np.sum(r**2, axis=1))/ self.h
+        assert ((j_list >= 0).all()), "q must be a positive value"
+
+        w_fac = 10 / (7 * np.pi * self.h ** 3)
+        for i, q in enumerate(j_list):
+            if 0 <= q < 1:
+                j_list[i] = w_fac * (-3*q + (9/4)*q**2)
+            elif 1 <= q <= 2:
+                j_list[i] = w_fac * (-(3/4)*(2-q)**2)
+            else:
+                j_list[i] = 0
+        return np.array(j_list)
+
+    def rho_smoothing(self, p_i, p_j_list):
+        """
+        :param p_i: (object) position of particle where calculations are being performed
+        :param p_j_list: (list of objects) position of particles influencing particle i
+        :return: (np array) smoothed density of particle i
+        """
+        assert(p_i in p_j_list) , "must include particle i in this calculation"
+        w_list = domain.W(p_i, p_j_list)
+        p_j_rho = np.array([p.rho for p in p_j_list])
+        assert((p_j_rho > 0).all()), "density must be always positive"
+        rho = np.sum(w_list) / np.sum(w_list / p_j_rho)
+
+        return rho
+
+
 class SPH_particle(object):
     """Object containing all the properties for a single particle"""
 
@@ -115,6 +175,7 @@ class SPH_particle(object):
         """
         self.list_num = np.array((self.x-self.main_data.min_x) /
                                  (2.0*self.main_data.h), int)
+
 
 
 if __name__ == '__main__':
