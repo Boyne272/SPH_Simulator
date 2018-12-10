@@ -32,15 +32,13 @@ class SPH_main(object):
 
     def initialise_grid(self):
         """Initalise simulation grid."""
-
-        """Increases the minimum and maximum to account for the virtual particle padding that is required at boundaries"""
+        # account for the virtual particle padding at boundaries
         self.min_x -= 2.0*self.h
         self.max_x += 2.0*self.h
-        
-        """Calculates the size of the array required to store the search array"""
-        self.max_list = np.array((self.max_x-self.min_x)/(2.0*self.h)+1,
-                                 int)
-                                 
+
+        # Calculates the size of search array
+        self.max_list = np.array((self.max_x-self.min_x)/(2.0*self.h)+1, int)
+        # Create the search array
         self.search_grid = np.empty(self.max_list, object)
 
     def place_points(self, xmin, xmax):
@@ -58,7 +56,7 @@ class SPH_main(object):
             x[0] += self.dx
 
     def allocate_to_grid(self):
-        """Allocate all the points to a grid in order to aid neighbour searching"""
+        """Allocate all the points to a grid to aid neighbour searching"""
         for i in range(self.max_list[0]):
             for j in range(self.max_list[1]):
                 self.search_grid[i, j] = []
@@ -77,16 +75,20 @@ class SPH_main(object):
                         dn = part.x-other_part.x
                         dist = np.sqrt(np.sum(dn**2))
                         if dist < 2.0*self.h:
-                            """This is only for demonstration - Your code will need to do all the particle to particle calculations at this point rather than simply displaying the vector to the neighbour"""
+                            """
+                            This is only for demonstration - Your code will
+                            need to do all the particle to particle
+                            calculations at this point rather than simply
+                            displaying the vector to the neighbour"""
                             print("id:", other_part.id, "dn:", dn)
-                 
+
     def plot_current_state(self):
         """
         Plots the current state of the system (i.e. where every particle is)
         in space.
         """
         x = np.array([p.x for p in self.particle_list])
-        plt.scatter(x[:,0], x[:, 1])
+        plt.scatter(x[:, 0], x[:, 1])
         plt.gca().set(xlabel='x', ylabel='y', title='Current State')
 
 
@@ -107,24 +109,35 @@ class SPH_particle(object):
         self.m = 0.0
 
     def calc_index(self):
-        """Calculates the 2D integer index for the particle's location in the search grid"""
+        """
+        Calculates the 2D integer index for the particle's
+        location in the search grid
+        """
         self.list_num = np.array((self.x-self.main_data.min_x) /
                                  (2.0*self.main_data.h), int)
+
 
 if __name__ == '__main__':
     """Create a single object of the main SPH type"""
     domain = SPH_main()
-    
+
     """Calls the function that sets the simulation parameters"""
     domain.set_values()
-    """Initialises the search grid""" 
+    """Initialises the search grid"""
     domain.initialise_grid()
-    
-    """Places particles in a grid over the entire domain - In your code you will need to place the fluid particles in only the appropriate locations"""
+
+    """
+    Places particles in a grid over the entire domain - In your code you
+    will need to place the fluid particles in only the appropriate locations
+    """
     domain.place_points(domain.min_x, domain.max_x)
-    
-    """This is only for demonstration only - In your code these functions will need to be inside the simulation loop"""
-    """This function needs to be called at each time step (or twice a time step if a second order time-stepping scheme is used)"""
+
+    """This is only for demonstration only - In your code these functions
+    will need to be inside the simulation loop"""
+    """This function needs to be called at each time step
+    (or twice a time step if a second order time-stepping scheme is used)"""
     domain.allocate_to_grid()
-    """This example is only finding the neighbours for a single partle - this will need to be inside the simulation loop and will need to be called for every particle"""
+    """This example is only finding the neighbours for a single partle
+    - this will need to be inside the simulation loop and will need to be
+    called for every particle"""
     domain.neighbour_iterate(domain.particle_list[100])
