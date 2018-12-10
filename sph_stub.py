@@ -3,6 +3,7 @@
 from itertools import count
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 class SPH_main(object):
@@ -78,6 +79,15 @@ class SPH_main(object):
                         if dist < 2.0*self.h:
                             """This is only for demonstration - Your code will need to do all the particle to particle calculations at this point rather than simply displaying the vector to the neighbour"""
                             print("id:", other_part.id, "dn:", dn)
+                 
+    def plot_current_state(self):
+        """
+        Plots the current state of the system (i.e. where every particle is)
+        in space.
+        """
+        x = np.array([p.x for p in self.particle_list])
+        plt.scatter(x[:,0], x[:, 1])
+        plt.gca().set(xlabel='x', ylabel='y', title='Current State')
 
 
 class SPH_particle(object):
@@ -101,20 +111,20 @@ class SPH_particle(object):
         self.list_num = np.array((self.x-self.main_data.min_x) /
                                  (2.0*self.main_data.h), int)
 
-
-"""Create a single object of the main SPH type"""
-domain = SPH_main()
-
-"""Calls the function that sets the simulation parameters"""
-domain.set_values()
-"""Initialises the search grid""" 
-domain.initialise_grid()
-
-"""Places particles in a grid over the entire domain - In your code you will need to place the fluid particles in only the appropriate locations"""
-domain.place_points(domain.min_x, domain.max_x)
-
-"""This is only for demonstration only - In your code these functions will need to be inside the simulation loop"""
-"""This function needs to be called at each time step (or twice a time step if a second order time-stepping scheme is used)"""
-domain.allocate_to_grid()
-"""This example is only finding the neighbours for a single partle - this will need to be inside the simulation loop and will need to be called for every particle"""
-domain.neighbour_iterate(domain.particle_list[100])
+if __name__ == '__main__':
+    """Create a single object of the main SPH type"""
+    domain = SPH_main()
+    
+    """Calls the function that sets the simulation parameters"""
+    domain.set_values()
+    """Initialises the search grid""" 
+    domain.initialise_grid()
+    
+    """Places particles in a grid over the entire domain - In your code you will need to place the fluid particles in only the appropriate locations"""
+    domain.place_points(domain.min_x, domain.max_x)
+    
+    """This is only for demonstration only - In your code these functions will need to be inside the simulation loop"""
+    """This function needs to be called at each time step (or twice a time step if a second order time-stepping scheme is used)"""
+    domain.allocate_to_grid()
+    """This example is only finding the neighbours for a single partle - this will need to be inside the simulation loop and will need to be called for every particle"""
+    domain.neighbour_iterate(domain.particle_list[100])
