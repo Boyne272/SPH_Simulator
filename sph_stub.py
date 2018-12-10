@@ -21,6 +21,7 @@ class SPH_main(object):
         self.particle_list = []
         self.search_grid = np.empty((0, 0), object)
 
+
     def set_values(self):
         """Set simulation parameters."""
 
@@ -29,6 +30,7 @@ class SPH_main(object):
         self.dx = 0.02
         self.h_fac = 1.3
         self.h = self.dx*self.h_fac
+
 
     def initialise_grid(self):
         """Initalise simulation grid."""
@@ -40,6 +42,7 @@ class SPH_main(object):
         self.max_list = np.array((self.max_x-self.min_x)/(2.0*self.h)+1, int)
         # Create the search array
         self.search_grid = np.empty(self.max_list, object)
+
 
     def place_points(self, xmin, xmax):
         """Place points in a rectangle with a square spacing of size dx"""
@@ -55,6 +58,7 @@ class SPH_main(object):
                 x[1] += self.dx
             x[0] += self.dx
 
+
     def allocate_to_grid(self):
         """Allocate all the points to a grid to aid neighbour searching"""
         for i in range(self.max_list[0]):
@@ -63,6 +67,7 @@ class SPH_main(object):
 
         for cnt in self.particle_list:
             self.search_grid[cnt.list_num[0], cnt.list_num[1]].append(cnt)
+
 
     def neighbour_iterate(self, part):
         """Find all the particles within 2h of the specified particle"""
@@ -81,6 +86,7 @@ class SPH_main(object):
                             calculations at this point rather than simply
                             displaying the vector to the neighbour"""
                             print("id:", other_part.id, "dn:", dn)
+
 
     def plot_current_state(self):
         """
@@ -137,6 +143,7 @@ class SPH_main(object):
                 j_list[i] = 0
         return np.array(j_list)
 
+
     def rho_smoothing(self, p_i, p_j_list):
         """
         :param p_i: (object) position of particle where calculations are being performed
@@ -144,7 +151,7 @@ class SPH_main(object):
         :return: (np array) smoothed density of particle i
         """
         assert(p_i in p_j_list) , "must include particle i in this calculation"
-        w_list = domain.W(p_i, p_j_list)
+        w_list = self.W(p_i, p_j_list)
         p_j_rho = np.array([p.rho for p in p_j_list])
         assert((p_j_rho > 0).all()), "density must be always positive"
         rho = np.sum(w_list) / np.sum(w_list / p_j_rho)
