@@ -22,6 +22,7 @@ class SPH_main(object):
         self.interval_save = 0
         self.CFL = 0
         self.B = 0.0
+        self.g = 0.0
         self.file = None
 
         self.min_x = np.zeros(2)
@@ -48,7 +49,8 @@ class SPH_main(object):
         self.interval_smooth = 15                                  # number of timesteps to which smooth rho
         self.interval_save = 15                                    # number of timesteps to which save the current state
         self.CFL = 0.2                                             # CFL constant, dimensionless
-        self.B = self.rho0 * self.c0**2 / self.gamma               # pressure constant (kg/m s^2)
+        self.B = self.rho0 * self.c0**2 / self.gamma               # pressure constant (Pa)
+        self.g = 9.81 * np.array([0, -1])                          # gravity value (m/s^2)
 
 
     def initialise_grid(self):
@@ -71,10 +73,16 @@ class SPH_main(object):
         while x[0] <= xmax[0]:
             x[1] = xmin[1]
             while x[1] <= xmax[1]:
+                # create particle object and assign index
                 particle = SPH_particle(self, x)
                 particle.calc_index()
+
+                # intiialise physical paramteres of particles
                 particle.rho = self.rho0
                 particle.m = self.dx**2 * self.rho0
+                particle.P = self.B
+
+                # append particle object to list of particles
                 self.particle_list.append(particle)
                 x[1] += self.dx
             x[0] += self.dx
@@ -92,23 +100,19 @@ class SPH_main(object):
 
     def neighbour_iterate(self, part):
         """Find all the particles within 2h of the specified particle"""
-        particles_j = []
+        part.ajc = []
         for i in range(max(0, part.list_num[0]-1),
                        min(part.list_num[0]+2, self.max_list[0])):
             for j in range(max(0, part.list_num[1]-1),
                            min(part.list_num[1]+2, self.max_list[1])):
                 for other_part in self.search_grid[i, j]:
                     if part is not other_part:
-                        dn = part.x-other_part.x
+                        dn = part.x-other_part.x  # ########### use this later
                         dist = np.sqrt(np.sum(dn**2))
                         if dist < 2.0*self.h:
-                            """
-                            This is only for demonstration - Your code will
-                            need to do all the particle to particle
-                            calculations at this point rather than simply
-                            displaying the vector to the neighbour"""
-                            particles_j.append(other_part)
-        return np.array(particles_j)
+                            part.ajc.append(other_part)
+
+        return None
 
 
     def plot_current_state(self):
@@ -178,40 +182,65 @@ class SPH_main(object):
         p_j_rho = np.array([p.rho for p in p_j_list])
         assert((p_j_rho > 0).all()), "density must be always positive"
         rho = np.sum(w_list) / np.sum(w_list / p_j_rho)
-
         return rho
 
-    def dvdt(self):
-        dvdt = 1
-        return dvdt
 
-    def timestepping(self, tf, rho0=1000, c0=20):
+    def timestepping(self, tf):
         """Timesteps the physical problem with a set dt until user-specified time is reached"""
-        dt = 0.1 * self.h / c0
+        dt = 0.1 * self.h / self.c0
         t = 0
-        assert (tf >= dt ), "time to short to resolve problem"
-        assert (rho0 > 0), "density must be a positive value"
-        assert (c0 > 0), "speed of sound must be a positive value"
+        assert (tf >= dt), "time to short to resolve problem"
 
         count = 0
         while t <= tf:
-            for i, p in enumerate(self.particle_list):
-                p_j_list = self.neighbour_iterate(p)
+            print("Iteration %g..."%(count + 1))
 
-                # create list of neighbours, pass into dvdt function
-                # timestep velocity
+            # find all the derivatives for each particle
+            for i, p_i in enumerate(self.particle_list):
+                # create list of neighbours for particle i
+                self.neighbour_iterate(p_i)
 
-                # update location
+                # calculate smoothing contribution from all neighbouring particles
+                dW_i = self.dW(p_i, p_i.ajc)
 
-                # timestep density
+                # calculate acceleration and rate of change of density
+                for j, p_j in enumerate(p_i.ajc):
+                    r_vec = p_i.x - p_j.x
+                    r_mod = np.sqrt(np.sum(r_vec ** 2))
+                    e_ij = r_vec / r_mod
+                    v_ij = p_i.v - p_j.v
+
+                    a = self.g
+                    a -= p_j.m * (p_i.P / p_i.rho ** 2 + p_j.P / p_j.rho ** 2) * dW_i[j] * e_ij
+                    a += self.mu * p_j.m * (1/p_i.rho**2 + 1/p_j.rho**2)*dW_i[j]*v_ij/ r_mod
+                    p_i.a = a
+
+                    p_i.D = p_j.m * dW_i[j] * (v_ij[0]*e_ij[0] + v_ij[1]*e_ij[1])
+
+
+            # updating each particles values
+            for i, p_i in enumerate(self.particle_list):
+                # update position -- needs to be updated before new velocity is computed
+                p_i.x = p_i.x + dt * p_i.v
+
+                # update velocity
+                p_i.v = p_i.v + dt * p_i.a
+
+                # update density, smooths if count is a multiple of smoothing
+                p_i.rho = p_i.rho + dt * p_i.D
+                if count%self.interval_smooth == 0:
+                    p_j_list = p_i.ajc[:]
+                    p_j_list.append(p_i)
+                    p_i.rho = self.rho_smoothing(p_i, p_j_list)
 
                 # update pressure
+                p_i.P = self.B * ((p_i.rho/self.rho0)**self.gamma - 1)
 
-                # smooth density (every 15 timesteps)
-                if count%15 == 0:
-                    p.rho = rho0 ## CHANGE THIS TO CALL THE SMOOTHING FUNCTION
+                # update particle indices
+                p_i.calc_index()
 
-                # update dt
+            # re-allocate particles to grid
+            self.allocate_to_grid()
 
             count += 1
             t += dt
@@ -234,6 +263,7 @@ class SPH_particle(object):
         self.rho = 0.0
         self.P = 0.0
         self.m = 0.0
+        self.adj = []
 
     def calc_index(self):
         """
@@ -270,4 +300,4 @@ if __name__ == '__main__':
     called for every particle"""
     # domain.neighbour_iterate(domain.particle_list[100])
 
-    domain.timestepping(tf=0.1)
+    domain.timestepping(tf=2e-4)
