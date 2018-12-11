@@ -37,7 +37,7 @@ def test_speedofsound():
 def test_density():
     file_path = 3
 
-    np.load(file_path, 'r')
+    # np.load(file_path, 'r')
 
     y = 3
     assert file_path == y

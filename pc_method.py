@@ -270,7 +270,7 @@ class SPH_main(object):
         self.file.close()
         return None
 
-    
+
     def update_dt(self): #, a, v_ij, rho):
         """
         To be deleted if v_ij or a are not used as attributes of particles
