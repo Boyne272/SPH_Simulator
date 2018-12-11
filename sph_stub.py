@@ -16,6 +16,8 @@ class SPH_main(object):
         self.h = 0.0
         self.h_fac = 0.0
         self.dx = 0.0
+        self.t = 0 ################# remove me
+        self.file = None  ################# remove me
 
         self.min_x = np.zeros(2)
         self.max_x = np.zeros(2)
@@ -178,12 +180,14 @@ class SPH_main(object):
             name = time
         assert type(name) is str, 'Name must be a string'
         assert os.path.isdir(path), path + ' directory does not exist'
+        assert self.file is None, "can't run twice as pickling an open file"
 
         # save the config file
         file = open(path + name + '_config.pkl', 'wb')
-        to_save = vars(self)
+        to_save = vars(self).copy()
         [to_save.pop(key) for key in ('search_grid', 'particle_list')]
-        pi.dump(vars(self), file, pi.HIGHEST_PROTOCOL)
+        print(to_save)
+        pi.dump(to_save, file, pi.HIGHEST_PROTOCOL)
         file.close()
 
         # set up the csv file
@@ -198,7 +202,19 @@ class SPH_main(object):
                         "[Kg/(m^3)], [bool]\n")
         self.file.write("Time, ID, R_x, R_y, V_x, V_y, Pressure, " +
                         "Density, Boundary\n")
-        self.file.close()
+
+    def save_state(self):
+        """
+        Append the current state of every particle in the system to the
+        end of the csv file.
+        """
+        assert self.file is not None, 'set_up_save() has not been run'
+
+        for p in self.particle_list:
+            # ###################### boundary bool
+            string = ''.join([str(v) + ',' for v in (self.t, p.id, p.x[0],
+                              p.x[1], p.v[0], p.v[1], p.rho, p.P, 1)]) + '\n'
+            self.file.write(string)
 
 
 class SPH_particle(object):
