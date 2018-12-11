@@ -54,8 +54,8 @@ def test_setup_save():
     assert os.path.exists('test.csv')
 
     # load files up again
-    load_dict = pi.load(open('raw_data/test_config.pkl', 'rb'))
-    load_csv = open('raw_data/test.csv', 'rb')
+    load_dict = pi.load(open('./test_config.pkl', 'rb'))
+    load_csv = open('./test.csv', 'rb')
 
     # check pickle saves correctly
     for key in load_dict.keys():
