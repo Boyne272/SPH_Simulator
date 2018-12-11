@@ -34,6 +34,7 @@ def init_grid():
         if 20 > p.x[0] > 0 and 10 > p.x[1] > 0:  # not boundary node
             if p.x[1] > 5 or (p.x[0] > 3 and p.x[1] > 2):
                 system.particle_list.remove(p)
+    system.allocate_to_grid()
     system.plot_current_state()
 
     return system
