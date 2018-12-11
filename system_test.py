@@ -30,8 +30,14 @@ if __name__ == '__main__':
 
 
 def test_speedofsound():
+    x = 1
+    y = 1
+    assert x == y
 
 def test_density():
     file_path = 3
 
     np.load(file_path, 'r')
+
+    y = 3
+    assert file_path == y
