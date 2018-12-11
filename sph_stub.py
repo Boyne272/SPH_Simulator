@@ -100,7 +100,7 @@ class SPH_main(object):
 
     def neighbour_iterate(self, part):
         """Find all the particles within 2h of the specified particle"""
-        part.ajc = []
+        part.adj = []          # needs to be reseted every time it's called
         for i in range(max(0, part.list_num[0]-1),
                        min(part.list_num[0]+2, self.max_list[0])):
             for j in range(max(0, part.list_num[1]-1),
@@ -110,7 +110,7 @@ class SPH_main(object):
                         dn = part.x-other_part.x  # ########### use this later
                         dist = np.sqrt(np.sum(dn**2))
                         if dist < 2.0*self.h:
-                            part.ajc.append(other_part)
+                            part.adj.append(other_part)
 
         return None
 
@@ -188,6 +188,7 @@ class SPH_main(object):
     def timestepping(self, tf):
         """Timesteps the physical problem with a set dt until user-specified time is reached"""
         dt = 0.1 * self.h / self.c0
+        # print(dt)
         t = 0
         v_ij_max = 0
         a_max = 0
@@ -196,7 +197,7 @@ class SPH_main(object):
 
         count = 0
         while t <= tf:
-            print("Iteration %g..."%(count + 1))
+            print("Timestep iteration %g..."%(count + 1))
 
             # find all the derivatives for each particle
             for i, p_i in enumerate(self.particle_list):
@@ -204,47 +205,53 @@ class SPH_main(object):
                 self.neighbour_iterate(p_i)
 
                 # calculate smoothing contribution from all neighbouring particles
-                dW_i = self.dW(p_i, p_i.ajc)
+                dW_i = self.dW(p_i, p_i.adj)
 
-                # calculate acceleration and rate of change of density
-                for j, p_j in enumerate(p_i.ajc):
+                # calculate acceleration and rate of change of density, find maximum relative velocity
+                # amongst all particles and their neighbours and the maximum acceleration amongst particles
+                a = self.g
+                for j, p_j in enumerate(p_i.adj):
                     r_vec = p_i.x - p_j.x
                     r_mod = np.sqrt(np.sum(r_vec ** 2))
                     e_ij = r_vec / r_mod
                     v_ij = p_i.v - p_j.v
+                    print(p_i.v == p_j.v)
 
-                    a = self.g
                     a -= p_j.m * (p_i.P / p_i.rho ** 2 + p_j.P / p_j.rho ** 2) * dW_i[j] * e_ij
                     a += self.mu * p_j.m * (1/p_i.rho**2 + 1/p_j.rho**2)*dW_i[j]*v_ij/ r_mod
-                    p_i.a = a
 
                     p_i.D = p_j.m * dW_i[j] * (v_ij[0]*e_ij[0] + v_ij[1]*e_ij[1])
 
-                    v_ij_max = np.amax(np.linalg.norm(v_ij), v_ij_max)
+                    v_ij_max = np.amax((np.linalg.norm(v_ij), v_ij_max))
 
-                a_max = np.amax(np.linalg.norm(a), a_max)
+                p_i.a = a
+                # print(a)
+                a_max = np.amax((np.linalg.norm(a), a_max))
 
                 rho_condition = np.sqrt((p_i.rho/self.rho0)**(self.gamma-1))
-                rho_max_condition = np.amax(rho_max_condition, rho_condition)
+                rho_max_condition = np.amax((rho_max_condition, rho_condition))
 
             # Updating the time step
-            cfl_dt = self.h / v_ij_max
-            f_dt = np.sqrt(self.h / a_max)
-            a_dt = np.amin(self.h / (self.c0 * rho_max_condition))
-            dt = self.CFL * np.amin([cfl_dt, f_dt, a_dt])
+            if count > 0:
+                # cfl_dt = self.h / v_ij_max
+                # f_dt = np.sqr/t(self.h / a_max)
+                # a_dt = np.amin(self.h / (self.c0 * rho_max_condition))
+                # dt = self.CFL * np.amin([cfl_dt, f_dt, a_dt])
+                o = "hi"
 
             # updating each particles values
             for i, p_i in enumerate(self.particle_list):
                 # update position -- needs to be updated before new velocity is computed
                 p_i.x = p_i.x + dt * p_i.v
-
+                # print(p_i.x)
                 # update velocity
+                # print(p_i.a)
                 p_i.v = p_i.v + dt * p_i.a
 
                 # update density, smooths if count is a multiple of smoothing
                 p_i.rho = p_i.rho + dt * p_i.D
-                if count%self.interval_smooth == 0:
-                    p_j_list = p_i.ajc[:]
+                if count % self.interval_smooth == 0:
+                    p_j_list = p_i.adj[:]
                     p_j_list.append(p_i)
                     p_i.rho = self.rho_smoothing(p_i, p_j_list)
 
@@ -313,28 +320,64 @@ class SPH_particle(object):
 
 
 if __name__ == '__main__':
-    """Create a single object of the main SPH type"""
-    domain = SPH_main()
 
-    """Calls the function that sets the simulation parameters"""
-    domain.set_values()
-    """Initialises the search grid"""
-    domain.initialise_grid()
+    def init_grid():
+        """
+        Create the intial system given in the documentation.
+        Note the x, y axis are scaled to be 1, 2 respectivley
 
-    """
-    Places particles in a grid over the entire domain - In your code you
-    will need to place the fluid particles in only the appropriate locations
-    """
-    domain.place_points(domain.min_x, domain.max_x)
+        This function operates by removing particles from a full grid, not ideal
+        for user friendlyness
+        """
+        # set up the system with no particles
+        system = SPH_main()
+        system.set_values()
+        system.max_x[:] = (20., 10.)  # set the grid to be the correct dimensions
+        system.dx = 0.2
+        system.h = system.dx * system.h_fac  # ############## caution here
+        system.initialise_grid()
 
-    """This is only for demonstration only - In your code these functions
-    will need to be inside the simulation loop"""
-    """This function needs to be called at each time step
-    (or twice a time step if a second order time-stepping scheme is used)"""
-    domain.allocate_to_grid()
-    """This example is only finding the neighbours for a single partle
-    - this will need to be inside the simulation loop and will need to be
-    called for every particle"""
-    # domain.neighbour_iterate(domain.particle_list[100])
+        # set up a full grid the grid
+        system.place_points(system.min_x, system.max_x)
+        # remove the unwanted points
+        for p in system.particle_list.copy():
+            if 20 > p.x[0] > 0 and 10 > p.x[1] > 0:  # not boundary node
+                if p.x[1] > 5 or (p.x[0] > 3 and p.x[1] > 2):
+                    system.particle_list.remove(p)
+        system.allocate_to_grid()
+        system.plot_current_state()
 
-    domain.timestepping(tf=2e-4)
+        return system
+
+    # """Create a single object of the main SPH type"""
+    # domain = SPH_main()
+    #
+    # """Calls the function that sets the simulation parameters"""
+    # domain.set_values()
+    # """Initialises the search grid"""
+    # domain.initialise_grid()
+    #
+    # """
+    # Places particles in a grid over the entire domain - In your code you
+    # will need to place the fluid particles in only the appropriate locations
+    # """
+    # domain.place_points(domain.min_x, domain.max_x)
+    #
+    # """This is only for demonstration only - In your code these functions
+    # will need to be inside the simulation loop"""
+    # """This function needs to be called at each time step
+    # (or twice a time step if a second order time-stepping scheme is used)"""
+    # domain.allocate_to_grid()
+    # """This example is only finding the neighbours for a single partle
+    # - this will need to be inside the simulation loop and will need to be
+    # called for every particle"""
+    # # domain.neighbour_iterate(domain.particle_list[100])
+
+    domain = init_grid()
+    domain.timestepping(tf=2e-3)
+    domain.plot_current_state()
+
+    # domain = init_grid()
+    # domain.timestepping(tf=10e-2)
+    # domain.plot_current_state()
+    plt.show()
