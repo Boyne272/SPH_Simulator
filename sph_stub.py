@@ -4,6 +4,9 @@ from itertools import count
 
 import numpy as np
 import matplotlib.pyplot as plt
+import pickle as pi              # for saving data
+import os                        # for checking directories
+from datetime import datetime
 
 
 class SPH_main(object):
@@ -146,17 +149,54 @@ class SPH_main(object):
 
     def rho_smoothing(self, p_i, p_j_list):
         """
-        :param p_i: (object) position of particle where calculations are being performed
-        :param p_j_list: (list of objects) position of particles influencing particle i
+        :param p_i: (object) position of particle where calculations
+                    are being performed
+        :param p_j_list: (list of objects) position of particles influencing
+                         particle i
         :return: (np array) smoothed density of particle i
         """
-        assert(p_i in p_j_list) , "must include particle i in this calculation"
+        assert(p_i in p_j_list), "must include particle i in this calculation"
         w_list = self.W(p_i, p_j_list)
         p_j_rho = np.array([p.rho for p in p_j_list])
         assert((p_j_rho > 0).all()), "density must be always positive"
         rho = np.sum(w_list) / np.sum(w_list / p_j_rho)
 
         return rho
+
+    def set_up_save(self, name=None, path='raw_data/'):
+        """
+        Saves the initial setup of the system and creates the csv file to
+        store ongoing results as solution runs.
+
+        Files are stored with name in file path (defaults to raw_data folder
+        with name given by the time of the simulation).
+        """
+
+        # pick a defualt name if none given
+        time = datetime.now().strftime('%Y-%m-%d-%Hhr-%Mm')
+        if name is None:
+            name = time
+        assert type(name) is str, 'Name must be a string'
+        assert os.path.isdir(path), path + ' directory does not exist'
+
+        # save the config file
+        file = open(path + name + '_config.pkl', 'wb')
+        pi.dump(vars(self), file, pi.HIGHEST_PROTOCOL)
+        file.close()
+
+        # set up the csv file
+        # replace any previous file with same name
+        self.file = open(path + name + '.csv', 'wb').close()
+        # open the new file in append mode
+        self.file = open(path + name + '.csv', 'a')
+        # header comments
+        self.file.write('# Created by team Southern on ' + time + '\n')
+        # set add in the column titles
+        self.file.write("""[s], , [m], [m], [m/s], [m/s], [Pa],
+                        [Kg/(m^3)], [bool]\n""")
+        self.file.write("""Time, ID, R_x, R_y, V_x, V_y, Pressure,
+                        Density, Boundary\n""")
+        self.file.close()
 
 
 class SPH_particle(object):
