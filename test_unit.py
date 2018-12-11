@@ -48,6 +48,7 @@ def test_setup_save():
     domain.initialise_grid()
     domain.place_points(domain.min_x, domain.max_x)
     domain.set_up_save(name='test', path='./')
+    domain.file.close()
 
     # check the files exist
     assert os.path.exists('test_config.pkl')
@@ -59,7 +60,8 @@ def test_setup_save():
 
     # check pickle saves correctly
     for key in load_dict.keys():
-        assert np.all(load_dict[key] == vars(domain)[key])
+        if key != 'file':
+            assert np.all(load_dict[key] == vars(domain)[key])
 
     for i, line in enumerate(load_csv):
         if i < 2:

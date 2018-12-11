@@ -186,7 +186,6 @@ class SPH_main(object):
         file = open(path + name + '_config.pkl', 'wb')
         to_save = vars(self).copy()
         [to_save.pop(key) for key in ('search_grid', 'particle_list')]
-        print(to_save)
         pi.dump(to_save, file, pi.HIGHEST_PROTOCOL)
         file.close()
 
