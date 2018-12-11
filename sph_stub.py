@@ -181,6 +181,8 @@ class SPH_main(object):
 
         # save the config file
         file = open(path + name + '_config.pkl', 'wb')
+        to_save = vars(self)
+        [to_save.pop(key) for key in ('search_grid', 'particle_list')]
         pi.dump(vars(self), file, pi.HIGHEST_PROTOCOL)
         file.close()
 
@@ -192,10 +194,10 @@ class SPH_main(object):
         # header comments
         self.file.write('# Created by team Southern on ' + time + '\n')
         # set add in the column titles
-        self.file.write("""[s], , [m], [m], [m/s], [m/s], [Pa],
-                        [Kg/(m^3)], [bool]\n""")
-        self.file.write("""Time, ID, R_x, R_y, V_x, V_y, Pressure,
-                        Density, Boundary\n""")
+        self.file.write("# [s], , [m], [m], [m/s], [m/s], [Pa], " +
+                        "[Kg/(m^3)], [bool]\n")
+        self.file.write("Time, ID, R_x, R_y, V_x, V_y, Pressure, " +
+                        "Density, Boundary\n")
         self.file.close()
 
 
