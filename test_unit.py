@@ -41,29 +41,29 @@ def test_rho_smoothing():
     return None
 
 
-def test_setup_save():
-    # setup the system and save
-    domain = sph.SPH_main()
-    domain.set_values()
-    domain.initialise_grid()
-    domain.place_points(domain.min_x, domain.max_x)
-    domain.set_up_save(name='test', path='./')
-    domain.file.close()
-
-    # check the files exist
-    assert os.path.exists('test_config.pkl')
-    assert os.path.exists('test.csv')
-
-    # load files up again
-    load_dict = pi.load(open('./test_config.pkl', 'rb'))
-    load_csv = open('./test.csv', 'rb')
-
-    # check pickle saves correctly
-    for key in load_dict.keys():
-        if key != 'file':
-            assert np.all(load_dict[key] == vars(domain)[key])
-
-    for i, line in enumerate(load_csv):
-        if i < 2:
-            assert str(line)[2] == '#'  # check first lines two lead with #
-    assert i == 2  # check only 3 lines saved
+# def test_setup_save():
+#     # setup the system and save
+#     domain = sph.SPH_main()
+#     domain.set_values()
+#     domain.initialise_grid()
+#     domain.place_points(domain.min_x, domain.max_x)
+#     domain.set_up_save(name='test', path='./')
+#     domain.file.close()
+#
+#     # check the files exist
+#     assert os.path.exists('test_config.pkl')
+#     assert os.path.exists('test.csv')
+#
+#     # load files up again
+#     load_dict = pi.load(open('./test_config.pkl', 'rb'))
+#     load_csv = open('./test.csv', 'rb')
+#
+#     # check pickle saves correctly
+#     for key in load_dict.keys():
+#         if key != 'file':
+#             assert np.all(load_dict[key] == vars(domain)[key])
+#
+#     for i, line in enumerate(load_csv):
+#         if i < 2:
+#             assert str(line)[2] == '#'  # check first lines two lead with #
+#     assert i == 2  # check only 3 lines saved
