@@ -19,6 +19,27 @@ for i in range(len(boundary)):
 
 # time values without repetition
 ts= list(set(t))
+
+def t_index(t):
+    """
+    input: a list
+    Return: a list with coordiates where list[i] != list[i]
+    """
+    dt = np.diff(t)
+    store=[]
+    store.append(0)
+    for i in range(len(dt)):
+        
+        # coordinate when t changes value
+        coordinate=i+1
+        if dt[i] != 0:
+            store.append(coordinate)
+    
+    # last particle coordinate
+    store.append(len(dt)+1)
+    
+    return store
+
 tindex = t_index(t)
 
 
