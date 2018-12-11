@@ -47,11 +47,11 @@ def test_setup_save():
     domain.set_values()
     domain.initialise_grid()
     domain.place_points(domain.min_x, domain.max_x)
-    domain.set_up_save(name='test')
+    domain.set_up_save(name='test', path='')
 
     # check the files exist
-    assert os.path.exists('raw_data/test_config.pkl')
-    assert os.path.exists('raw_data/test.csv')
+    assert os.path.exists('test_config.pkl')
+    assert os.path.exists('test.csv')
 
     # load files up again
     load_dict = pi.load(open('raw_data/test_config.pkl', 'rb'))
