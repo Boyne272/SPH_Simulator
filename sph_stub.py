@@ -267,7 +267,6 @@ class SPH_main(object):
         To be deleted if v_ij or a are not used as attributes of particles
         :return: chosen time step for the iteration
         """
-
         v_ij = [p.v_ij for p in self.particle_list]
         v_ij_max = np.amax(v_ij)
         cfl_dt = self.h / v_ij_max
