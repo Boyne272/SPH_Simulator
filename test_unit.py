@@ -35,3 +35,21 @@ def test_rho_smoothing():
     p_j_list = [a, b, c, d]
     assert (np.isclose(domain.rho_smoothing(a, p_j_list), 947.9241831713144))
     return None
+
+
+def test_update_dt():
+    domain = sph.SPH_main()
+    domain.set_values()
+
+    a = [10, 10]
+    rho = [1000]
+    v_ij = [20, 20]
+
+    cfl_dt_check = (0.02*1.3)/20
+    f_dt_check = np.sqrt((0.02*1.3)/10)
+    a_dt_check = np.amin((0.02*1.3)/(20*np.sqrt((rho/1000)**(7-1))))
+
+    dt_check = 0.2*np.amin([cfl_dt_check, f_dt_check, a_dt_check])
+    print("check", dt_check)
+
+    assert(np.isclose(domain.update_dt(a, v_ij, rho), dt_check))
