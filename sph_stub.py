@@ -13,6 +13,16 @@ class SPH_main(object):
         self.h = 0.0
         self.h_fac = 0.0
         self.dx = 0.0
+        self.mu = 0.0
+        self.rho0 = 0.0
+        self.c0 = 0.0
+        self.t_curr = 0.0
+        self.gamma = 0.0
+        self.interval_smooth = 0
+        self.interval_save = 0
+        self.CFL = 0
+        self.B = 0.0
+        self.file = None
 
         self.min_x = np.zeros(2)
         self.max_x = np.zeros(2)
@@ -26,10 +36,19 @@ class SPH_main(object):
         """Set simulation parameters."""
 
         self.min_x[:] = (0.0, 0.0)
-        self.max_x[:] = (1.0, 1.0)
-        self.dx = 0.02
+        self.max_x[:] = (1.0, 1.0)                                 # insert units
+        self.dx = 0.02                                             # insert units
         self.h_fac = 1.3
-        self.h = self.dx*self.h_fac
+        self.h = self.dx*self.h_fac                                # bin half-size
+        self.mu = 0.001                                            # viscosity (Pa s)
+        self.rho0 = 1000                                           # initial particle density (kg/m^3)
+        self.c0 = 20                                               # speed of sound in water (m/s)
+        self.t_curr = 0.0                                          # current time of the system (s)
+        self.gamma = 7                                             # stiffness value, dimensionless
+        self.interval_smooth = 15                                  # number of timesteps to which smooth rho
+        self.interval_save = 15                                    # number of timesteps to which save the current state
+        self.CFL = 0.2                                             # CFL constant, dimensionless
+        self.B = self.rho0 * self.c0**2 / self.gamma               # pressure constant (kg/m s^2)
 
 
     def initialise_grid(self):
@@ -54,6 +73,8 @@ class SPH_main(object):
             while x[1] <= xmax[1]:
                 particle = SPH_particle(self, x)
                 particle.calc_index()
+                particle.rho = self.rho0
+                particle.m = self.dx**2 * self.rho0
                 self.particle_list.append(particle)
                 x[1] += self.dx
             x[0] += self.dx
@@ -71,6 +92,7 @@ class SPH_main(object):
 
     def neighbour_iterate(self, part):
         """Find all the particles within 2h of the specified particle"""
+        particles_j = []
         for i in range(max(0, part.list_num[0]-1),
                        min(part.list_num[0]+2, self.max_list[0])):
             for j in range(max(0, part.list_num[1]-1),
@@ -85,7 +107,8 @@ class SPH_main(object):
                             need to do all the particle to particle
                             calculations at this point rather than simply
                             displaying the vector to the neighbour"""
-                            print("id:", other_part.id, "dn:", dn)
+                            particles_j.append(other_part)
+        return np.array(particles_j)
 
 
     def plot_current_state(self):
@@ -158,6 +181,43 @@ class SPH_main(object):
 
         return rho
 
+    def dvdt(self):
+        dvdt = 1
+        return dvdt
+
+    def timestepping(self, tf, rho0=1000, c0=20):
+        """Timesteps the physical problem with a set dt until user-specified time is reached"""
+        dt = 0.1 * self.h / c0
+        t = 0
+        assert (tf >= dt ), "time to short to resolve problem"
+        assert (rho0 > 0), "density must be a positive value"
+        assert (c0 > 0), "speed of sound must be a positive value"
+
+        count = 0
+        while t <= tf:
+            for i, p in enumerate(self.particle_list):
+                p_j_list = self.neighbour_iterate(p)
+
+                # create list of neighbours, pass into dvdt function
+                # timestep velocity
+
+                # update location
+
+                # timestep density
+
+                # update pressure
+
+                # smooth density (every 15 timesteps)
+                if count%15 == 0:
+                    p.rho = rho0 ## CHANGE THIS TO CALL THE SMOOTHING FUNCTION
+
+                # update dt
+
+            count += 1
+            t += dt
+
+        return None
+
 
 class SPH_particle(object):
     """Object containing all the properties for a single particle"""
@@ -208,4 +268,6 @@ if __name__ == '__main__':
     """This example is only finding the neighbours for a single partle
     - this will need to be inside the simulation loop and will need to be
     called for every particle"""
-    domain.neighbour_iterate(domain.particle_list[100])
+    # domain.neighbour_iterate(domain.particle_list[100])
+
+    domain.timestepping(tf=0.1)
