@@ -189,6 +189,9 @@ class SPH_main(object):
         """Timesteps the physical problem with a set dt until user-specified time is reached"""
         dt = 0.1 * self.h / self.c0
         t = 0
+        v_ij_max = 0
+        a_max = 0
+        rho_max_condition = 0
         assert (tf >= dt), "time to short to resolve problem"
 
         count = 0
@@ -217,6 +220,18 @@ class SPH_main(object):
 
                     p_i.D = p_j.m * dW_i[j] * (v_ij[0]*e_ij[0] + v_ij[1]*e_ij[1])
 
+                    v_ij_max = np.amax(np.linalg.norm(v_ij), v_ij_max)
+
+                a_max = np.amax(np.linalg.norm(a), a_max)
+
+                rho_condition = np.sqrt((p_i.rho/self.rho0)**(self.gamma-1))
+                rho_max_condition = np.amax(rho_max_condition, rho_condition)
+
+            # Updating the time step
+            cfl_dt = self.h / v_ij_max
+            f_dt = np.sqrt(self.h / a_max)
+            a_dt = np.amin(self.h / (self.c0 * rho_max_condition))
+            dt = self.CFL * np.amin([cfl_dt, f_dt, a_dt])
 
             # updating each particles values
             for i, p_i in enumerate(self.particle_list):
@@ -246,6 +261,28 @@ class SPH_main(object):
             t += dt
 
         return None
+
+    def update_dt(self): #, a, v_ij, rho):
+        """
+        To be deleted if v_ij or a are not used as attributes of particles
+        :return: chosen time step for the iteration
+        """
+
+        v_ij = [p.v_ij for p in self.particle_list]
+        v_ij_max = np.amax(v_ij)
+        cfl_dt = self.h / v_ij_max
+
+        #a = [p.a for p in self.particle_list]
+        a_max = np.amax(a)
+        f_dt = np.sqrt(self.h / a_max)
+
+        #rho = [p.rho for p in self.particle_list]
+        a_dt = np.amin(self.h / (self.c0 * np.sqrt((rho / self.rho0) ** (self.gamma - 1))))
+
+        chosen_dt = self.CFL * np.amin([cfl_dt, f_dt, a_dt])
+        return chosen_dt
+
+
 
 
 class SPH_particle(object):
