@@ -1,9 +1,10 @@
 """SPH class to find nearest neighbours..."""
 
 from itertools import count
-
 import numpy as np
 import matplotlib.pyplot as plt
+
+
 
 
 class SPH_main(object):
@@ -184,6 +185,67 @@ class SPH_main(object):
         rho = np.sum(w_list) / np.sum(w_list / p_j_rho)
         return rho
 
+    def differentials_aD(self):
+        v_ij_max = 0
+        a_max = 0
+        rho_max_condition = 0
+        for i, p_i in enumerate(self.particle_list):
+            # create list of neighbours for particle i
+            self.neighbour_iterate(p_i)
+
+            # if not p_i.bound or
+
+            # calculate smoothing contribution from all neighbouring particles
+            dW_i = self.dW(p_i, p_i.adj)
+
+            # calculate acceleration and rate of change of density, find maximum relative velocity
+            # amongst all particles and their neighbours and the maximum acceleration amongst particles
+            p_i.a = self.g
+            p_i.D = 0
+            for j, p_j in enumerate(p_i.adj):
+                r_vec = p_i.x - p_j.x
+                r_mod = np.sqrt(np.sum(r_vec ** 2))
+                e_ij = r_vec / r_mod
+                v_ij = p_i.v - p_j.v
+
+                p_i.a -= p_j.m * (p_i.P / p_i.rho ** 2 + p_j.P / p_j.rho ** 2) * dW_i[j] * e_ij
+                p_i.a += self.mu * p_j.m * (1 / p_i.rho ** 2 + 1 / p_j.rho ** 2) * dW_i[j] * v_ij / r_mod
+
+                p_i.D += p_j.m * dW_i[j] * (v_ij[0] * e_ij[0] + v_ij[1] * e_ij[1])
+
+                v_ij_max = np.amax((np.linalg.norm(v_ij), v_ij_max))
+
+            a_max = np.amax((np.linalg.norm(p_i.a), a_max))
+
+            rho_condition = np.sqrt((p_i.rho / self.rho0) ** (self.gamma - 1))
+            rho_max_condition = np.amax((rho_max_condition, rho_condition))
+
+        return dW_i, p_i.a, p_i.D
+
+    def PC_method(self, count, dt):
+        for i, p_i in enumerate(self.particle_list):
+            # update position -- needs to be updated before new velocity is computed
+            p_i.x = p_i.x + dt * p_i.v
+
+            # update velocity
+            p_i.v = p_i.v + dt * p_i.a
+
+            # update density, smooths if count is a multiple of smoothing
+            p_i.rho = p_i.rho + dt * p_i.D
+            if count % self.interval_smooth == 0:
+                p_j_list = p_i.adj[:]
+                p_j_list.append(p_i)
+                p_i.rho = self.rho_smoothing(p_i, p_j_list)
+
+            # update pressure
+            ## p_i.P = self.B * ((p_i.rho / self.rho0) ** self.gamma - 1)
+
+            # update particle indices
+            p_i.calc_index()
+
+        return p_i.x, p_i.v, p_i.rho
+
+
     def timestepping(self, tf):
         """Timesteps the physical problem with a set dt until user-specified time is reached"""
         dt = 0.1 * self.h / self.c0
@@ -203,8 +265,6 @@ class SPH_main(object):
                 # create list of neighbours for particle i
                 self.neighbour_iterate(p_i)
 
-                # if not p_i.bound or
-
                 # calculate smoothing contribution from all neighbouring particles
                 dW_i = self.dW(p_i, p_i.adj)
 
@@ -217,7 +277,6 @@ class SPH_main(object):
                     r_mod = np.sqrt(np.sum(r_vec ** 2))
                     e_ij = r_vec / r_mod
                     v_ij = p_i.v - p_j.v
-                    # print(p_i.v == p_j.v)
 
                     p_i.a -= p_j.m * (p_i.P / p_i.rho ** 2 + p_j.P / p_j.rho ** 2) * dW_i[j] * e_ij
                     p_i.a += self.mu * p_j.m * (1 / p_i.rho ** 2 + 1 / p_j.rho ** 2) * dW_i[j] * v_ij / r_mod
@@ -233,6 +292,7 @@ class SPH_main(object):
 
             # Updating the time step
             if count > 0:
+                # CONSTANT DT CONSIDERED
                 # cfl_dt = self.h / v_ij_max
                 # f_dt = np.sqr/t(self.h / a_max)
                 # a_dt = np.amin(self.h / (self.c0 * rho_max_condition))
@@ -242,23 +302,55 @@ class SPH_main(object):
             # updating each particles values
             for i, p_i in enumerate(self.particle_list):
                 # update position -- needs to be updated before new velocity is computed
-                p_i.x = p_i.x + dt * p_i.v
+                p_i.x = p_i.x + 0.5 * dt * p_i.v
 
                 # update velocity
-                p_i.v = p_i.v + dt * p_i.a
+                p_i.v = p_i.v + 0.5 * dt * p_i.a
 
                 # update density, smooths if count is a multiple of smoothing
-                p_i.rho = p_i.rho + dt * p_i.D
+                p_i.rho = p_i.rho + 0.5 * dt * p_i.D
                 if count % self.interval_smooth == 0:
                     p_j_list = p_i.adj[:]
                     p_j_list.append(p_i)
                     p_i.rho = self.rho_smoothing(p_i, p_j_list)
 
                 # update pressure
-                p_i.P = self.B * ((p_i.rho / self.rho0) ** self.gamma - 1)
+                ## p_i.P = self.B * ((p_i.rho / self.rho0) ** self.gamma - 1)
 
                 # update particle indices
                 p_i.calc_index()
+
+            # for i, p_i in enumerate(self.particle_list):
+            #     # create list of neighbours for particle i
+            #     self.neighbour_iterate(p_i)
+            #
+            #     # if not p_i.bound or
+            #
+            #     # calculate smoothing contribution from all neighbouring particles
+            #     dW_i = self.dW(p_i, p_i.adj)
+            #
+            #     # calculate acceleration and rate of change of density, find maximum relative velocity
+            #     # amongst all particles and their neighbours and the maximum acceleration amongst particles
+            #     p_i.a = self.g
+            #     p_i.D = 0
+            #     for j, p_j in enumerate(p_i.adj):
+            #         r_vec = p_i.x - p_j.x
+            #         r_mod = np.sqrt(np.sum(r_vec ** 2))
+            #         e_ij = r_vec / r_mod
+            #         v_ij = p_i.v - p_j.v
+            #
+            #         p_i.a -= p_j.m * (p_i.P / p_i.rho ** 2 + p_j.P / p_j.rho ** 2) * dW_i[j] * e_ij
+            #         p_i.a += self.mu * p_j.m * (1 / p_i.rho ** 2 + 1 / p_j.rho ** 2) * dW_i[j] * v_ij / r_mod
+            #
+            #         p_i.D += p_j.m * dW_i[j] * (v_ij[0] * e_ij[0] + v_ij[1] * e_ij[1])
+            #
+            #         v_ij_max = np.amax((np.linalg.norm(v_ij), v_ij_max))
+            #
+            #     a_max = np.amax((np.linalg.norm(p_i.a), a_max))
+            #
+            #     rho_condition = np.sqrt((p_i.rho / self.rho0) ** (self.gamma - 1))
+            #     rho_max_condition = np.amax((rho_max_condition, rho_condition))
+
 
             # re-allocate particles to grid
             self.allocate_to_grid()
@@ -269,28 +361,6 @@ class SPH_main(object):
             self.t_curr += dt
         self.file.close()
         return None
-
-
-    def update_dt(self): #, a, v_ij, rho):
-        """
-        To be deleted if v_ij or a are not used as attributes of particles
-        :return: chosen time step for the iteration
-        """
-        v_ij = [p.v_ij for p in self.particle_list]
-        v_ij_max = np.amax(v_ij)
-        cfl_dt = self.h / v_ij_max
-
-        #a = [p.a for p in self.particle_list]
-        a_max = np.amax(a)
-        f_dt = np.sqrt(self.h / a_max)
-
-        #rho = [p.rho for p in self.particle_list]
-        a_dt = np.amin(self.h / (self.c0 * np.sqrt((rho / self.rho0) ** (self.gamma - 1))))
-
-        chosen_dt = self.CFL * np.amin([cfl_dt, f_dt, a_dt])
-        return chosen_dt
-
-
 
 
 class SPH_particle(object):
