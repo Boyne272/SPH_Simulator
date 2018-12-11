@@ -16,6 +16,17 @@ class SPH_main(object):
         self.h = 0.0
         self.h_fac = 0.0
         self.dx = 0.0
+        self.mu = 0.0
+        self.rho0 = 0.0
+        self.c0 = 0.0
+        self.t_curr = 0.0
+        self.gamma = 0.0
+        self.interval_smooth = 0
+        self.interval_save = 0
+        self.CFL = 0
+        self.B = 0.0
+        self.g = 0.0
+        self.file = None
 
         self.min_x = np.zeros(2)
         self.max_x = np.zeros(2)
@@ -29,10 +40,20 @@ class SPH_main(object):
         """Set simulation parameters."""
 
         self.min_x[:] = (0.0, 0.0)
-        self.max_x[:] = (1.0, 1.0)
-        self.dx = 0.02
+        self.max_x[:] = (1.0, 1.0)                                 # insert units
+        self.dx = 0.02                                             # insert units
         self.h_fac = 1.3
-        self.h = self.dx*self.h_fac
+        self.h = self.dx*self.h_fac                                # bin half-size
+        self.mu = 0.001                                            # viscosity (Pa s)
+        self.rho0 = 1000                                           # initial particle density (kg/m^3)
+        self.c0 = 20                                               # speed of sound in water (m/s)
+        self.t_curr = 0.0                                          # current time of the system (s)
+        self.gamma = 7                                             # stiffness value, dimensionless
+        self.interval_smooth = 15                                  # number of timesteps to which smooth rho
+        self.interval_save = 15                                    # number of timesteps to which save the current state
+        self.CFL = 0.2                                             # CFL constant, dimensionless
+        self.B = self.rho0 * self.c0**2 / self.gamma               # pressure constant (Pa)
+        self.g = 9.81 * np.array([0, -1])                          # gravity value (m/s^2)
 
 
     def initialise_grid(self):
@@ -55,8 +76,16 @@ class SPH_main(object):
         while x[0] <= xmax[0]:
             x[1] = xmin[1]
             while x[1] <= xmax[1]:
+                # create particle object and assign index
                 particle = SPH_particle(self, x)
                 particle.calc_index()
+
+                # intiialise physical paramteres of particles
+                particle.rho = self.rho0
+                particle.m = self.dx**2 * self.rho0
+                particle.P = self.B
+
+                # append particle object to list of particles
                 self.particle_list.append(particle)
                 x[1] += self.dx
             x[0] += self.dx
@@ -74,21 +103,19 @@ class SPH_main(object):
 
     def neighbour_iterate(self, part):
         """Find all the particles within 2h of the specified particle"""
+        part.ajc = []
         for i in range(max(0, part.list_num[0]-1),
                        min(part.list_num[0]+2, self.max_list[0])):
             for j in range(max(0, part.list_num[1]-1),
                            min(part.list_num[1]+2, self.max_list[1])):
                 for other_part in self.search_grid[i, j]:
                     if part is not other_part:
-                        dn = part.x-other_part.x
+                        dn = part.x-other_part.x  # ########### use this later
                         dist = np.sqrt(np.sum(dn**2))
                         if dist < 2.0*self.h:
-                            """
-                            This is only for demonstration - Your code will
-                            need to do all the particle to particle
-                            calculations at this point rather than simply
-                            displaying the vector to the neighbour"""
-                            print("id:", other_part.id, "dn:", dn)
+                            part.ajc.append(other_part)
+
+        return None
 
 
     def plot_current_state(self):
@@ -160,7 +187,6 @@ class SPH_main(object):
         p_j_rho = np.array([p.rho for p in p_j_list])
         assert((p_j_rho > 0).all()), "density must be always positive"
         rho = np.sum(w_list) / np.sum(w_list / p_j_rho)
-
         return rho
 
     def set_up_save(self, name=None, path='raw_data/'):
@@ -178,12 +204,13 @@ class SPH_main(object):
             name = time
         assert type(name) is str, 'Name must be a string'
         assert os.path.isdir(path), path + ' directory does not exist'
+        assert self.file is None, "can't run twice as pickling an open file"
 
         # save the config file
         file = open(path + name + '_config.pkl', 'wb')
-        to_save = vars(self)
+        to_save = vars(self).copy()
         [to_save.pop(key) for key in ('search_grid', 'particle_list')]
-        pi.dump(vars(self), file, pi.HIGHEST_PROTOCOL)
+        pi.dump(to_save, file, pi.HIGHEST_PROTOCOL)
         file.close()
 
         # set up the csv file
@@ -198,7 +225,119 @@ class SPH_main(object):
                         "[Kg/(m^3)], [bool]\n")
         self.file.write("Time, ID, R_x, R_y, V_x, V_y, Pressure, " +
                         "Density, Boundary\n")
-        self.file.close()
+
+    def save_state(self):
+        """
+        Append the current state of every particle in the system to the
+        end of the csv file.
+        """
+        assert self.file is not None, 'set_up_save() has not been run'
+
+        for p in self.particle_list:
+            # ###################### boundary bool
+            string = ''.join([str(v) + ',' for v in (self.t_curr, p.id, p.x[0],
+                              p.x[1], p.v[0], p.v[1], p.rho, p.P, 1)]) + '\n'
+            self.file.write(string)
+
+
+    def timestepping(self, tf):
+        """Timesteps the physical problem with a set dt until user-specified time is reached"""
+        dt = 0.1 * self.h / self.c0
+        t = 0
+        v_ij_max = 0
+        a_max = 0
+        rho_max_condition = 0
+        assert (tf >= dt), "time to short to resolve problem"
+
+        count = 0
+        while t <= tf:
+            print("Iteration %g..."%(count + 1))
+
+            # find all the derivatives for each particle
+            for i, p_i in enumerate(self.particle_list):
+                # create list of neighbours for particle i
+                self.neighbour_iterate(p_i)
+
+                # calculate smoothing contribution from all neighbouring particles
+                dW_i = self.dW(p_i, p_i.ajc)
+
+                # calculate acceleration and rate of change of density
+                for j, p_j in enumerate(p_i.ajc):
+                    r_vec = p_i.x - p_j.x
+                    r_mod = np.sqrt(np.sum(r_vec ** 2))
+                    e_ij = r_vec / r_mod
+                    v_ij = p_i.v - p_j.v
+
+                    a = self.g
+                    a -= p_j.m * (p_i.P / p_i.rho ** 2 + p_j.P / p_j.rho ** 2) * dW_i[j] * e_ij
+                    a += self.mu * p_j.m * (1/p_i.rho**2 + 1/p_j.rho**2)*dW_i[j]*v_ij/ r_mod
+                    p_i.a = a
+
+                    p_i.D = p_j.m * dW_i[j] * (v_ij[0]*e_ij[0] + v_ij[1]*e_ij[1])
+
+                    v_ij_max = np.amax(np.linalg.norm(v_ij), v_ij_max)
+
+                a_max = np.amax(np.linalg.norm(a), a_max)
+
+                rho_condition = np.sqrt((p_i.rho/self.rho0)**(self.gamma-1))
+                rho_max_condition = np.amax(rho_max_condition, rho_condition)
+
+            # Updating the time step
+            cfl_dt = self.h / v_ij_max
+            f_dt = np.sqrt(self.h / a_max)
+            a_dt = np.amin(self.h / (self.c0 * rho_max_condition))
+            dt = self.CFL * np.amin([cfl_dt, f_dt, a_dt])
+
+            # updating each particles values
+            for i, p_i in enumerate(self.particle_list):
+                # update position -- needs to be updated before new velocity is computed
+                p_i.x = p_i.x + dt * p_i.v
+
+                # update velocity
+                p_i.v = p_i.v + dt * p_i.a
+
+                # update density, smooths if count is a multiple of smoothing
+                p_i.rho = p_i.rho + dt * p_i.D
+                if count%self.interval_smooth == 0:
+                    p_j_list = p_i.ajc[:]
+                    p_j_list.append(p_i)
+                    p_i.rho = self.rho_smoothing(p_i, p_j_list)
+
+                # update pressure
+                p_i.P = self.B * ((p_i.rho/self.rho0)**self.gamma - 1)
+
+                # update particle indices
+                p_i.calc_index()
+
+            # re-allocate particles to grid
+            self.allocate_to_grid()
+
+            count += 1
+            t += dt
+
+        return None
+
+    def update_dt(self): #, a, v_ij, rho):
+        """
+        To be deleted if v_ij or a are not used as attributes of particles
+        :return: chosen time step for the iteration
+        """
+
+        v_ij = [p.v_ij for p in self.particle_list]
+        v_ij_max = np.amax(v_ij)
+        cfl_dt = self.h / v_ij_max
+
+        #a = [p.a for p in self.particle_list]
+        a_max = np.amax(a)
+        f_dt = np.sqrt(self.h / a_max)
+
+        #rho = [p.rho for p in self.particle_list]
+        a_dt = np.amin(self.h / (self.c0 * np.sqrt((rho / self.rho0) ** (self.gamma - 1))))
+
+        chosen_dt = self.CFL * np.amin([cfl_dt, f_dt, a_dt])
+        return chosen_dt
+
+
 
 
 class SPH_particle(object):
@@ -216,6 +355,7 @@ class SPH_particle(object):
         self.rho = 0.0
         self.P = 0.0
         self.m = 0.0
+        self.adj = []
 
     def calc_index(self):
         """
@@ -250,4 +390,6 @@ if __name__ == '__main__':
     """This example is only finding the neighbours for a single partle
     - this will need to be inside the simulation loop and will need to be
     called for every particle"""
-    domain.neighbour_iterate(domain.particle_list[100])
+    # domain.neighbour_iterate(domain.particle_list[100])
+
+    domain.timestepping(tf=2e-4)
