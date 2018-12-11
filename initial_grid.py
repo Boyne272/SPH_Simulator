@@ -22,17 +22,17 @@ def init_grid():
     # set up the system with no particles
     system = SPH_main()
     system.set_values()
-    system.max_x[:] = (2., 1.)  # set the grid to be the correct dimensions
+    system.max_x[:] = (20., 10.)  # set the grid to be the correct dimensions
+    system.dx = 0.2
+    system.h = system.dx * system.h_fac   # ############## caution here
     system.initialise_grid()
 
     # set up a full grid the grid
     system.place_points(system.min_x, system.max_x)
     # remove the unwanted points
     for p in system.particle_list.copy():
-        if 2 > p.x[0] > 0 and 1 > p.x[1] > 0:  # not boundary node
-            if p.x[1] > 0.5:
-                system.particle_list.remove(p)
-            elif p.x[0] > 0.3 and p.x[1] > 0.3:
+        if 20 > p.x[0] > 0 and 10 > p.x[1] > 0:  # not boundary node
+            if p.x[1] > 5 or (p.x[0] > 3 and p.x[1] > 2):
                 system.particle_list.remove(p)
     system.plot_current_state()
 
