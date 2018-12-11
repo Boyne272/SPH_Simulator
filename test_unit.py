@@ -63,7 +63,9 @@ def test_rho_smoothing():
 #         if key != 'file':
 #             assert np.all(load_dict[key] == vars(domain)[key])
 
+
 #     for i, line in enumerate(load_csv):
 #         if i < 2:
 #             assert str(line)[2] == '#'  # check first lines two lead with #
-    assert i == 2  # check only 3 lines saved
+#    assert i == 2  # check only 3 lines saved
+
