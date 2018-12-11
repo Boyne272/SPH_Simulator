@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 """SPH class to find nearest neighbours..."""
 
 from itertools import count
@@ -217,7 +216,7 @@ class SPH_main(object):
                     a = self.g
                     a -= p_j.m * (p_i.P / p_i.rho ** 2 + p_j.P / p_j.rho ** 2) * dW_i[j] * e_ij
                     a += self.mu * p_j.m * (1/p_i.rho**2 + 1/p_j.rho**2)*dW_i[j]*v_ij/ r_mod
-                    p_i.a = a
+                    p_i.a += a
 
                     p_i.D = p_j.m * dW_i[j] * (v_ij[0]*e_ij[0] + v_ij[1]*e_ij[1])
 
@@ -244,6 +243,7 @@ class SPH_main(object):
 
                 # update density, smooths if count is a multiple of smoothing
                 p_i.rho = p_i.rho + dt * p_i.D
+
                 if count%self.interval_smooth == 0:
                     p_j_list = p_i.ajc[:]
                     p_j_list.append(p_i)

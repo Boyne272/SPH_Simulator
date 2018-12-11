@@ -32,8 +32,6 @@ if __name__ == '__main__':
 def test_speedofsound():
 
 def test_density():
-    file_path = data.csv
+    file_path = 3
 
     np.load(file_path, 'r')
-
-    if
