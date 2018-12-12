@@ -3,6 +3,7 @@ from itertools import count
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+import sys
 from datetime import datetime
 import pickle as pi
 
@@ -201,7 +202,9 @@ class SPH_main(object):
 
         count = 0
         while self.t_curr <= tf:
-            print("Timestep iteration %g..."%(count + 1))
+#            print("Timestep iteration %g..."%(count + 1))
+            sys.stdout.write(r"Timestep iteration %g..." % (count + 1))
+            sys.stdout.flush()
 
             # find all the derivatives for each particle
             for i, p_i in enumerate(self.particle_list):
@@ -244,7 +247,7 @@ class SPH_main(object):
 
             # updating each particles values
             for i, p_i in enumerate(self.particle_list):
-                print(p_i.bound)
+#                print(p_i.bound)
                 # if particle is not at the boundary
                 if not p_i.bound:
                     # update position -- needs to be updated before new velocity is computed
@@ -330,8 +333,8 @@ class SPH_main(object):
         # set add in the column titles
         self.file.write("# [s], , [m], [m], [m/s], [m/s], [Pa], " +
                         "[Kg/(m^3)], [bool]\n")
-        self.file.write("Time, ID, R_x, R_y, V_x, V_y, Pressure, " +
-                        "Density, Boundary\n")
+        self.file.write("Time,ID,R_x,R_y,V_x,V_y,Pressure," +
+                        "Density,Boundary\n")
         # save initial state
         self.save_state()
 
@@ -420,7 +423,7 @@ if __name__ == '__main__':
         # set up the system with no particles
         system = SPH_main()
         system.set_values()
-        system.max_x[:] = (20., 10.)  # set the grid to be the correct dimensions
+        system.max_x[:] = (20., 10.)  # set the grid to correct dimensions
         system.dx = 1
 
         system.h = system.dx * system.h_fac  # ############## caution here
