@@ -1,16 +1,16 @@
-import sph_stub as sph
+from sph_stub import SPH_main, SPH_particle
 import numpy as np
 import pickle as pi
 import os
 
 
 def test_W_dW():
-    domain = sph.SPH_main()
-    domain.set_values()
-    a = sph.SPH_particle(x=np.array([5, 6]))
-    b = sph.SPH_particle(x=np.array([5.02, 6.04]))
-    c = sph.SPH_particle(x=np.array([5.0003, 6.0003]))
-    d = sph.SPH_particle(x=np.array([9, 15]))
+    domain = SPH_main()
+    domain.determine_values()
+    a = SPH_particle(x=np.array([5, 6]))
+    b = SPH_particle(x=np.array([5.02, 6.04]))
+    c = SPH_particle(x=np.array([5.0003, 6.0003]))
+    d = SPH_particle(x=np.array([9, 15]))
     p_j_list = [b, c, d]
 
     assert(np.isclose(domain.W(a, p_j_list),
@@ -21,19 +21,19 @@ def test_W_dW():
 
 
 def test_rho_smoothing():
-    domain = sph.SPH_main()
-    domain.set_values()
+    domain = SPH_main()
+    domain.determine_values()
 
-    a = sph.SPH_particle(x=np.array([5, 6]))
+    a = SPH_particle(x=np.array([5, 6]))
     a.rho = 1000  # kg m^-3
 
-    b = sph.SPH_particle(x=np.array([5.02, 6.04]))
+    b = SPH_particle(x=np.array([5.02, 6.04]))
     b.rho = 1200  # kg m^-3
 
-    c = sph.SPH_particle(x=np.array([5.0003, 6.0003]))
+    c = SPH_particle(x=np.array([5.0003, 6.0003]))
     c.rho = 900  # kg m^-3
 
-    d = sph.SPH_particle(x=np.array([9, 15]))
+    d = SPH_particle(x=np.array([9, 15]))
     d.rho = 100  # kg m^-3
 
     p_j_list = [a, b, c, d]
@@ -41,30 +41,35 @@ def test_rho_smoothing():
     return None
 
 
-# def test_setup_save():
-#     # setup the system and save
-#     domain = sph.SPH_main()
-#     domain.set_values()
-#     domain.initialise_grid()
-#     domain.place_points(domain.min_x, domain.max_x)
-#     domain.set_up_save(name='test', path='./')
-#     domain.file.close()
+def test_setup_save():
+    # setup the system and save
+    def f(x, y):
+        if 0 <= y <= 2 or (0 <= x <= 3 and 0 <= y <= 5):
+            return 1
+        else:
+            return 0
+    domain = SPH_main(x_min=[0, 0], x_max=[20, 20], dx=1)
+    domain.determine_values()
+    domain.initialise_grid(f)
+    domain.allocate_to_grid()
+    domain.set_up_save(name='test', path='./')
+    domain.file.close()
 
-#     # check the files exist
-#     assert os.path.exists('test_config.pkl')
-#     assert os.path.exists('test.csv')
+    # check the files exist
+    assert os.path.exists('test_config.pkl')
+    assert os.path.exists('test.csv')
 
-#     # load files up again
-#     load_dict = pi.load(open('./test_config.pkl', 'rb'))
-#     load_csv = open('./test.csv', 'rb')
+    # load files up again
+    load_dict = pi.load(open('./test_config.pkl', 'rb'))
+    load_csv = open('./test.csv', 'rb')
 
-#     # check pickle saves correctly
-#     for key in load_dict.keys():
-#         if key != 'file':
-#             assert np.all(load_dict[key] == vars(domain)[key])
-#
-#     for i, line in enumerate(load_csv):
-#         if i < 2:
-#             assert str(line)[2] == '#'  # check first lines two lead with #
-#     assert i == 2  # check only 3 lines saved
+    # check pickle saves correctly
+    for key in load_dict.keys():
+        if key != 'file':
+            assert np.all(load_dict[key] == vars(domain)[key])
 
+    for i, line in enumerate(load_csv):
+        if i < 2:
+            assert str(line)[2] == '#'  # check first lines two lead with #
+    # check 3 + number particles saved
+#    assert i == 2 

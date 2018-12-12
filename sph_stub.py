@@ -11,81 +11,115 @@ import pickle as pi
 class SPH_main(object):
     """Primary SPH object"""
 
-    def __init__(self):
-        self.h = 0.0
-        self.h_fac = 0.0
-        self.dx = 0.0
-        self.mu = 0.0
-        self.rho0 = 0.0
-        self.c0 = 0.0
-        self.t_curr = 0.0
-        self.gamma = 0.0
-        self.interval_smooth = 0
-        self.interval_save = 0
-        self.CFL = 0
+    def __init__(self, x_min=(0.0, 0.0), x_max=(1.0, 1.0), dx=0.02):
+
+        # set empty attributes for later
+        self.h = None
         self.B = 0.0
-        self.g = 0.0
+        self.w_fac1 = 0.0
+        self.w_fac2 = 0.0
         self.file = None
 
+        # set given attributes
+        self.dx = dx
+        self.t_curr = 0.0                   # current time of the system (s)
+        self.h_fac = 1.3
+        self.mu = 0.001                     # viscosity (Pa s)
+        self.rho0 = 1000                    # initial particle density (kg/m^3)
+        self.c0 = 20                        # speed of sound in water (m/s)
+        self.gamma = 7                      # stiffness value, dimensionless
+        self.interval_smooth = 15           # timesteps to smooth rho
+        self.interval_save = 15             # timesteps to save the state
+        self.CFL = 0.2                      # CFL constant, dimensionless
+        self.g = 9.81 * np.array([0, -1])   # gravity value (m/s^2)
+
+        # set the limits
         self.min_x = np.zeros(2)
+        self.min_x[:] = x_min
         self.max_x = np.zeros(2)
+        self.max_x[:] = x_max
         self.max_list = np.zeros(2, int)
 
+        # setup the particle lists
         self.particle_list = []
         self.search_grid = np.empty((0, 0), object)
 
-    def set_values(self):
+    def determine_values(self):
         """Set simulation parameters."""
 
-        self.min_x[:] = (0.0, 0.0)
-        self.max_x[:] = (1.0, 1.0)  # insert units
-        self.dx = 0.02  # insert units
-        self.h_fac = 1.3
-        self.h = self.dx * self.h_fac  # bin half-size
-        self.mu = 0.001  # viscosity (Pa s)
-        self.rho0 = 1000  # initial particle density (kg/m^3)
-        self.c0 = 20  # speed of sound in water (m/s)
-        self.t_curr = 0.0  # current time of the system (s)
-        self.gamma = 7  # stiffness value, dimensionless
-        self.interval_smooth = 15  # number of timesteps to which smooth rho
-        self.interval_save = 15  # number of timesteps to which save the current state
-        self.CFL = 0.2  # CFL constant, dimensionless
-        self.B = self.rho0 * self.c0 ** 2 / self.gamma  # pressure constant (Pa)
-        self.g = 9.81 * np.array([0, -1])  # gravity value (m/s^2)
+        self.h = self.dx*self.h_fac                   # bin half-size
+        self.lil_bit = self.dx*0.01                   # to include upper limits
+        self.B = self.rho0 * self.c0**2 / self.gamma  # pressure constant (Pa)
+        self.w_fac1 = 10 / (7 * np.pi * self.h ** 2)  # constant often used
+        self.w_fac2 = 10 / (7 * np.pi * self.h ** 3)  # constant often used
 
-    def initialise_grid(self):
-        """Initalise simulation grid."""
-        # account for the virtual particle padding at boundaries
-        self.min_x -= 2.0 * self.h
-        self.max_x += 2.0 * self.h
+    def initialise_grid(self, func):
+        """
+        Initalise simulation grid.
+        func takes array x and returns 1 for in fluid or 0 for out of fluid
+        """
 
-        # Calculates the size of search array
-        self.max_list = np.array((self.max_x - self.min_x) / (2.0 * self.h) + 1, int)
-        # Create the search array
+        assert self.h is not None, 'must run determine values first'
+
+        # set internal points
+        for x in np.arange(self.min_x[0], self.max_x[0] + self.lil_bit,
+                           self.dx):
+            for y in np.arange(self.min_x[1], self.max_x[1] + self.lil_bit,
+                               self.dx):
+                if func(x, y) == 1:
+                    self.place_point(x, y, bound=0)
+
+        self.add_boundaries()  # create the boundary points
+
+        # check there are no duplicate points
+        tmp = np.array([p.x for p in self.particle_list])
+        assert np.unique(tmp, axis=0).shape[0] == len(tmp), \
+            'there is a duplicate point'
+
+        # setup the search array (find size then create array)
+        self.max_list = np.array((self.max_x-self.min_x)/(2.0*self.h)+1, int)
         self.search_grid = np.empty(self.max_list, object)
 
-    def place_points(self, xmin, xmax, bound=0):
-        """Place points in a rectangle with a square spacing of size dx"""
+    def add_boundaries(self):
+        "add the boundary points so at least 2h around the edge "
+        # create the boundary points
+        tmp_diff = 0
+        while tmp_diff < 2.0*self.h:
+            tmp_diff += self.dx
+            tmp_min = self.min_x - tmp_diff
+            tmp_max = self.max_x + tmp_diff
 
-        x = np.array(xmin)
+            # upper and lower rows
+            for x in np.arange(tmp_min[0], tmp_max[0] + self.lil_bit, self.dx):
+                self.place_point(x, tmp_min[1], bound=1)
+                self.place_point(x, tmp_max[1], bound=1)
 
-        while x[0] <= xmax[0]:
-            x[1] = xmin[1]
-            while x[1] <= xmax[1]:
-                # create particle object and assign index
-                particle = SPH_particle(self, x)
-                particle.calc_index()
+            # left and right (removing corners)
+            tmp = np.arange(tmp_min[0], tmp_max[0] + self.lil_bit, self.dx)
+            for i, y in enumerate(tmp):
+                if i != 0 and i != len(tmp)-1:
+                    self.place_point(tmp_min[0], y, bound=1)
+                    self.place_point(tmp_max[0], y, bound=1)
 
-                # intiialise physical paramteres of particles
-                particle.rho = self.rho0
-                particle.m = self.dx ** 2 * self.rho0
-                particle.P = 0.
-                particle.bound = bound
+        # account for the boundary particle changing limits
+        self.min_x -= tmp_diff
+        self.max_x += tmp_diff
 
-                # append particle object to list of particles
-                self.particle_list.append(particle)
-                x[1] += self.dx
-            x[0] += self.dx
+    def place_point(self, x, y, bound=0):
+        """Place particle at point given"""
+
+        # create particle object and assign index
+        particle = SPH_particle(self, np.array([x, y]))
+        particle.calc_index()
+
+        # intiialise physical paramteres of particles
+        particle.rho = self.rho0
+        particle.m = self.dx**2 * self.rho0
+        particle.P = 0.
+        particle.bound = bound
+
+        # append particle object to list of particles
+        self.particle_list.append(particle)
 
     def allocate_to_grid(self):
         """Allocate all the points to a grid to aid neighbour searching"""
@@ -105,7 +139,7 @@ class SPH_main(object):
                            min(part.list_num[1] + 2, self.max_list[1])):
                 for other_part in self.search_grid[i, j]:
                     if part is not other_part:
-                        dn = part.x - other_part.x  # ########### use this later
+                        dn = part.x - other_part.x  # ####### use this later
                         dist = np.sqrt(np.sum(dn ** 2))
                         if dist < 2.0 * self.h:
                             part.adj.append(other_part)
@@ -242,11 +276,9 @@ class SPH_main(object):
             for i, p_i in enumerate(self.particle_list.copy()):
                 # if particle is not at the boundary
                 if not p_i.bound:
-                    # update position -- needs to be updated before new velocity is computed
-                    p_i.x = p_i.x + dt * p_i.v
-
-                    # update velocity
-                    p_i.v = p_i.v + dt * p_i.a
+                    p_i.x = p_i.x + dt * p_i.v  # update position
+                    # positions needs to be before velocity
+                    p_i.v = p_i.v + dt * p_i.a  # update velocity
 
                 # for all particles: update density, smooths if count is a multiple of smoothing
                 p_i.rho = p_i.rho + dt * p_i.D
@@ -275,7 +307,6 @@ class SPH_main(object):
         # close file
         self.file.close()
         return None
-
 
     def set_up_save(self, name=None, path='raw_data/'):
         """
@@ -316,7 +347,6 @@ class SPH_main(object):
         # save initial state
         # self.save_state()
 
-
     def save_state(self):
         """
         Append the current state of every particle in the system to the
@@ -325,9 +355,10 @@ class SPH_main(object):
         assert self.file is not None, 'set_up_save() has not been run'
 
         for p in self.particle_list:
-            string = ''.join([str(v) + ',' for v in (self.t_curr, p.id, p.x[0],
-                                                     p.x[1], p.v[0], p.v[1], p.a[0], p.a[1],
-                                                     p.P, p.rho, p.bound)]) + '\n'
+            string = ''.join([str(v) + ','
+                              for v in (self.t_curr, p.id, p.x[0], p.x[1],
+                                        p.v[0], p.v[1], p.a[0], p.a[1], p.P,
+                                        p.rho, p.bound)]) + '\n'
             self.file.write(string)
 
 
@@ -360,56 +391,70 @@ class SPH_particle(object):
 
 if __name__ == '__main__':
 
-    def init_grid_better():
-        """
-        Create the intial system given in the documentation.
-        Note the x, y axis are scaled to be 1, 2 respectivley
-        This function operates by removing particles from a full grid,
-        not ideal for user friendlyness
-        """
-        # set up the system with no particles
-        system = SPH_main()
-        system.set_values()
-        system.max_x[:] = (20., 10.)  # set the grid to correct dimensions
-        system.dx = 1
+#
+#    def init_grid_better():
+#        """
+#        Create the intial system given in the documentation.
+#        Note the x, y axis are scaled to be 1, 2 respectivley
+#
+#        This function operates by removing particles from a full grid,
+#        not ideal for user friendlyness
+#        """
+#        # set up the system with no particles
+#        system = SPH_main()
+#        system.set_values()
+#        system.max_x[:] = (20., 10.)  # set the grid to correct dimensions
+#        system.dx = 1
+#
+#        system.h = system.dx * system.h_fac  # ############## caution here
+#        system.initialise_grid()
+#
+#        # set up a full grid the grid
+#        system.place_points(system.min_x, system.max_x)
+#
+#        for p in system.particle_list:
+#            p.v = np.array([1, 0])
+#
+#        # remove the unwanted points
+#        for p in system.particle_list.copy():
+#            if 20 > p.x[0] > 0 and 10 > p.x[1] > 0:  # not boundary node
+#                if p.x[1] > 5 or (p.x[0] > 3 and p.x[1] > 2):
+#                    system.particle_list.remove(p)
+#
+#        # set the boundary nodes
+#        for p in system.particle_list.copy():
+#            if p.x[0] > 20 or p.x[0] < 0 or p.x[1] > 10 or p.x[1] < 0:
+#                p.bound = 1
+#                p.v = np.array([0, 0])
+#
+#        system.allocate_to_grid()
+#        system.set_up_save()
+#        xs = np.array([p.x for p in system.particle_list])
+#        bs = [p.bound for p in system.particle_list]
+#        # plt.scatter(xs[:, 0], xs[:, 1], c=bs)
+#
+#        return system
 
-        system.h = system.dx * system.h_fac  # ############## caution here
-        system.initialise_grid()
+    def f(x, y):
+        if 0 <= y <= 2 or (0 <= x <= 3 and 0 <= y <= 5):
+            return 1
+        else:
+            return 0
 
-        # set up a full grid the grid
-        system.place_points(system.min_x, system.max_x)
+    domain = SPH_main(x_min=[0, 0], x_max=[20, 20], dx=1)
+    domain.determine_values()
+    domain.initialise_grid(f)
+    domain.allocate_to_grid()
+    domain.set_up_save()
+    domain.timestepping(tf=0.5)
+    
 
-        for p in system.particle_list:
-            p.v = np.array([1, 0])
-
-        # remove the unwanted points
-        for p in system.particle_list.copy():
-            if 20 > p.x[0] > 0 and 10 > p.x[1] > 0:  # not boundary node
-                if p.x[1] > 5 or (p.x[0] > 3 and p.x[1] > 2):
-                    system.particle_list.remove(p)
-
-        # set the boundary nodes
-        for p in system.particle_list.copy():
-            if p.x[0] > 20 or p.x[0] < 0 or p.x[1] > 10 or p.x[1] < 0:
-                p.bound = 1
-                p.v = np.array([0, 0])
-
-        system.allocate_to_grid()
-        system.set_up_save()
-        xs = np.array([p.x for p in system.particle_list])
-        bs = [p.bound for p in system.particle_list]
-        # plt.scatter(xs[:, 0], xs[:, 1], c=bs)
-
-        return system
-
-
-    domain = init_grid_better()
+#    domain = init_grid_better()
     # plt.close()
     # domain.timestepping(tf=15e-3)
     # domain.plot_current_state()
 
     # domain = init_grid_better()
-    domain.timestepping(tf=6)
-    domain.plot_current_state()
-
-    plt.show()
+#    domain.timestepping(tf=6)
+#    domain.plot_current_state()
+#    plt.show()
