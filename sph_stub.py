@@ -6,6 +6,7 @@ import os
 import sys
 from datetime import datetime
 import pickle as pi
+from animate_results import load_and_set, animate
 
 
 class SPH_main(object):
@@ -19,6 +20,8 @@ class SPH_main(object):
         self.w_fac1 = 0.0
         self.w_fac2 = 0.0
         self.file = None
+        self.P_ref = 0.0
+        self.d_ref = 0.0
 
         # set given attributes
         self.dx = dx
@@ -52,6 +55,8 @@ class SPH_main(object):
         self.B = self.rho0 * self.c0**2 / self.gamma  # pressure constant (Pa)
         self.w_fac1 = 10 / (7 * np.pi * self.h ** 2)  # constant often used
         self.w_fac2 = 10 / (7 * np.pi * self.h ** 3)  # constant often used
+        self.P_ref = self.B*(1.05**self.gamma - 1)
+        self.d_ref = 0.9 * self.dx
 
     def initialise_grid(self, func):
         """
@@ -95,7 +100,7 @@ class SPH_main(object):
                 self.place_point(x, tmp_max[1], bound=1)
 
             # left and right (removing corners)
-            tmp = np.arange(tmp_min[0], tmp_max[0] + self.lil_bit, self.dx)
+            tmp = np.arange(tmp_min[1], tmp_max[1] + self.lil_bit, self.dx)
             for i, y in enumerate(tmp):
                 if i != 0 and i != len(tmp)-1:
                     self.place_point(tmp_min[0], y, bound=1)
@@ -213,6 +218,32 @@ class SPH_main(object):
         rho = np.sum(w_list) / np.sum(w_list / p_j_rho)
         return rho
 
+    def LJ_boundary_force(self, p):
+        r_wall_left = abs(p.x[0] - self.min_x[0])
+        if r_wall_left != 0:
+            q_ref_left = self.d_ref / r_wall_left
+            if q_ref_left > 1:
+                p.a[0] = p.a[0] + (self.P_ref * (q_ref_left ** 4 - q_ref_left ** 2) / (r_wall_left * p.rho))
+
+        r_wall_bottom = abs(p.x[1] - self.min_x[1])
+        if r_wall_bottom != 0:
+            q_ref_bottom = self.d_ref / r_wall_bottom
+            if q_ref_bottom > 1:
+                p.a[1] = p.a[1] + (self.P_ref * (q_ref_bottom ** 4 - q_ref_bottom ** 2) / (r_wall_bottom * p.rho))
+
+        r_wall_right = abs(p.x[0] - self.max_x[0])
+        if r_wall_right != 0:
+            q_ref_right = self.d_ref / r_wall_right
+            if q_ref_right > 1:
+                p.a[0] = p.a[0] - (self.P_ref * (q_ref_right ** 4 - q_ref_right ** 2) / (r_wall_right * p.rho))
+
+        r_wall_top = abs(p.x[1] - self.max_x[1])
+        if r_wall_top != 0:
+            q_ref_top = self.d_ref / r_wall_top
+            if q_ref_top > 1:
+                p.a[1] = p.a[1] - (self.P_ref * (q_ref_top ** 4 - q_ref_top ** 2) / (r_wall_top * p.rho))
+        return None
+
     def timestepping(self, tf):
         """Timesteps the physical problem with a set dt until user-specified time is reached"""
         dt = 0.1 * self.h / self.c0
@@ -249,6 +280,8 @@ class SPH_main(object):
                                          p_j.P / p_j.rho ** 2) * dW_i[j] * e_ij)
                         p_i.a = p_i.a + (self.mu * p_j.m *(1 / p_i.rho**2 +
                                          1 / p_j.rho**2) * dW_i[j] * v_ij / r_mod)
+
+                        self.LJ_boundary_force(p_i)
 
                         p_i.D = p_i.D + p_j.m * dW_i[j] * (v_ij[0] * e_ij[0] + v_ij[1] * e_ij[1])
 
@@ -391,70 +424,22 @@ class SPH_particle(object):
 
 if __name__ == '__main__':
 
-#
-#    def init_grid_better():
-#        """
-#        Create the intial system given in the documentation.
-#        Note the x, y axis are scaled to be 1, 2 respectivley
-#
-#        This function operates by removing particles from a full grid,
-#        not ideal for user friendlyness
-#        """
-#        # set up the system with no particles
-#        system = SPH_main()
-#        system.set_values()
-#        system.max_x[:] = (20., 10.)  # set the grid to correct dimensions
-#        system.dx = 1
-#
-#        system.h = system.dx * system.h_fac  # ############## caution here
-#        system.initialise_grid()
-#
-#        # set up a full grid the grid
-#        system.place_points(system.min_x, system.max_x)
-#
-#        for p in system.particle_list:
-#            p.v = np.array([1, 0])
-#
-#        # remove the unwanted points
-#        for p in system.particle_list.copy():
-#            if 20 > p.x[0] > 0 and 10 > p.x[1] > 0:  # not boundary node
-#                if p.x[1] > 5 or (p.x[0] > 3 and p.x[1] > 2):
-#                    system.particle_list.remove(p)
-#
-#        # set the boundary nodes
-#        for p in system.particle_list.copy():
-#            if p.x[0] > 20 or p.x[0] < 0 or p.x[1] > 10 or p.x[1] < 0:
-#                p.bound = 1
-#                p.v = np.array([0, 0])
-#
-#        system.allocate_to_grid()
-#        system.set_up_save()
-#        xs = np.array([p.x for p in system.particle_list])
-#        bs = [p.bound for p in system.particle_list]
-#        # plt.scatter(xs[:, 0], xs[:, 1], c=bs)
-#
-#        return system
-
     def f(x, y):
         if 0 <= y <= 2 or (0 <= x <= 3 and 0 <= y <= 5):
             return 1
         else:
             return 0
 
-    domain = SPH_main(x_min=[0, 0], x_max=[20, 20], dx=1)
+    # set up and run
+    domain = SPH_main(x_min=[0, 0], x_max=[10, 30], dx=1)
     domain.determine_values()
     domain.initialise_grid(f)
     domain.allocate_to_grid()
     domain.set_up_save()
+
     domain.timestepping(tf=0.5)
-    
 
-#    domain = init_grid_better()
-    # plt.close()
-    # domain.timestepping(tf=15e-3)
-    # domain.plot_current_state()
-
-    # domain = init_grid_better()
-#    domain.timestepping(tf=6)
-#    domain.plot_current_state()
-#    plt.show()
+    # animate
+    ani = load_and_set(domain.file.name, 'Density')
+    ani.animate()
+    plt.show()
