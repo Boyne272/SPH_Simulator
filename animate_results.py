@@ -87,6 +87,8 @@ def load_and_set(file_name, color_key='V_x'):
     ani = animate(x, y, z, times)
     return ani
 
-ani = load_and_set('raw_data/2018-12-12-14hr-15m.csv', 'Density')
-#ani = load_and_set(domain.file.name, 'Density')
+ani = load_and_set('raw_data/2018-12-12-14hr-51m.csv', 'Density')
+# ani = load_and_set(domain.file.name, 'Density')
 ani.animate()
+plt.show()
+
