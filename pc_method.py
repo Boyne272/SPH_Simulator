@@ -79,7 +79,8 @@ class SPH_main(object):
                 particle.calc_index()
 
                 # intiialise physical paramteres of particles
-                particle.rho = self.rho0
+                particle.rho1 = self.rho0
+                particle.rho2 = self.rho0
                 particle.m = self.dx**2 * self.rho0
                 particle.P = self.B
 
@@ -108,7 +109,7 @@ class SPH_main(object):
                            min(part.list_num[1]+2, self.max_list[1])):
                 for other_part in self.search_grid[i, j]:
                     if part is not other_part:
-                        dn = part.x-other_part.x  # ########### use this later
+                        dn = part.x2-other_part.x2  # ########### use this later
                         dist = np.sqrt(np.sum(dn**2))
                         if dist < 2.0*self.h:
                             part.ajc.append(other_part)
@@ -121,7 +122,7 @@ class SPH_main(object):
         Plots the current state of the system (i.e. where every particle is)
         in space.
         """
-        x = np.array([p.x for p in self.particle_list])
+        x = np.array([p.x2 for p in self.particle_list])
         plt.scatter(x[:, 0], x[:, 1])
         plt.gca().set(xlabel='x', ylabel='y', title='Current State')
 
@@ -371,11 +372,14 @@ class SPH_particle(object):
     def __init__(self, main_data=None, x=np.zeros(2)):
         self.id = next(self._ids)
         self.main_data = main_data
-        self.x = np.array(x)
-        self.v = np.zeros(2)
+        self.x1 = np.array(x) # 2 x to save the time step
+        self.x2 = np.array(x)
+        self.v1 = np.zeros(2)  # 2 v to save new v time step
+        self.v2 = np.zeros(2)
         self.a = np.zeros(2)
         self.D = 0
-        self.rho = 0.0
+        self.rho1 = 0.0
+        self.rho2 = 0.0
         self.P = 0.0
         self.m = 0.0
         self.adj = []
@@ -385,7 +389,7 @@ class SPH_particle(object):
         Calculates the 2D integer index for the particle's
         location in the search grid
         """
-        self.list_num = np.array((self.x-self.main_data.min_x) /
+        self.list_num = np.array((self.x1-self.main_data.min_x) /
                                  (2.0*self.main_data.h), int)
 
 
@@ -415,4 +419,6 @@ if __name__ == '__main__':
     called for every particle"""
     # domain.neighbour_iterate(domain.particle_list[100])
 
-    domain.timestepping(tf=2e-4)
+    #domain.timestepping(tf=2e-4)
+
+    # How to run it?
