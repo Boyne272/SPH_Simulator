@@ -476,9 +476,6 @@ class SPH_particle(object):
                                  (2.0 * self.main_data.h), int)
 
 
-
-
-
     def set_up_save(self, name=None, path='raw_data/'):
         """
         Saves the initial setup of the system and creates the csv file to
