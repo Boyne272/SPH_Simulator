@@ -300,7 +300,6 @@ class SPH_main(object):
         """
         Saves the initial setup of the system and creates the csv file to
         store ongoing results as solution runs.
-
         Files are stored with name in file path (defaults to raw_data folder
         with name given by the time of the simulation).
         """
