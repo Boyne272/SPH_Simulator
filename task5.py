@@ -1,29 +1,44 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 
+# read files
+def Read(file_name):
     
+    # read from files
+    df = pd.read_csv(file_name, skiprows = 2, index_col=False)
 
-xx=[-1, 0 ,0.5, 1, 3, 0, 2, 0, 1, 2, 0, 2, 2, 1, 2, -2]
-yy=np.array([20, 1, 1, 2, 6, 7, 8, 3, 3, 0, 4, 3, 4, 4, 5, 20])
+    # format data
+    tt = df['Time']
+    tt = [float(i) for i in tt]
+    xx = df['R_x']
+    xx = [float(i) for i in xx]
+    yy = df['R_y']
+    yy = [float(i) for i in yy]
+    boundary = df['Boundary']
+    boundary = [int(i) for i in boundary]
+    
+    
+    # Remove Boundary particles
+    x = []
+    y = []
+    t = []
+    for i in range(len(boundary)):
+        if boundary[i] == True:
+            x.append(xx[i]);
+            y.append(yy[i]);
+            t.append(tt[i])
+    
+    x = np.array(x); y=np.array(y); t=np.array(t)
 
-tt=np.array([ 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4])
-
-boundary = np.array([1, 0 ,0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1])
-
-# Remove Boundary particles
-x = []
-y = []
-t = []
-for i in range(len(boundary)):
-    if boundary[i] == False:
-        x.append(xx[i]);
-        y.append(yy[i]);
-        t.append(tt[i])
-
+    return  x, y, t
 
 dt = np.diff(t)
 
+x=np.array(x)
+y=np.array(y)
+t=np.array(t)
 
 # time values without repetition
 ts= list(set(t))
@@ -50,8 +65,7 @@ def t_index(t):
     return store
 
 
-# tindex = start index of each time
-tindex = t_index(t)
+
 
 
 def MVAVARAGE(List, N):
@@ -74,7 +88,8 @@ def MVAVARAGE(List, N):
             moving_aves.append(moving_ave)
     return(moving_aves)
 
-def peak(x, y, t, tindex, ts, mv_avN, wallpos):
+
+def peak(file_name, x, y, t, mv_avN, wallpos):
     """
     Inputs: 
         ----------------------------------
@@ -90,6 +105,13 @@ def peak(x, y, t, tindex, ts, mv_avN, wallpos):
         Crest_xcoords (list), Crest_height (list), times(list), sloash time(flaot)
         ---------------------------------
     """
+    x, y, t =  Read(file_name)
+    
+    # tindex = start index of each time
+    tindex = t_index(t)
+    
+    # time values without repetition
+    ts= list(set(t))
 
     Crest_height=[]
     Crest_xcoords=[]
@@ -101,7 +123,6 @@ def peak(x, y, t, tindex, ts, mv_avN, wallpos):
         ypoints = y[tindex[i] : tindex[i+1]]
         gridpointsY = MVAVARAGE(ypoints, mv_avN)
         
-        
         Peak_Indx = np.where(gridpointsY==max(gridpointsY))[0][0]
         Peak = gridpointsY[Peak_Indx]
         Crest_height.append(Peak)
@@ -112,27 +133,13 @@ def peak(x, y, t, tindex, ts, mv_avN, wallpos):
         if coord >= 0.99*wallpos:
             t_sloshing.append(ts[i])
         
-        #plt.plot(ts, Crest_height , 'o')
+    #plt.plot(ts, Crest_xcoords, 'o')
        
     tslosh = t_sloshing[0]
     
-    print("Crest_height", Crest_height)
-    print("Crest_xcoords", Crest_xcoords)
-    print("tslosh", tslosh)
-    print("ts", ts)
+    #print("Crest_height", Crest_height)
+    #print("Crest_xcoords", len(Crest_xcoords))
+    #print("tslosh", tslosh)
+    #print("ts", ts)
     
     return(Crest_xcoords, Crest_height, ts, tslosh)
-
-
-"""
-def t_repeat(t, ts):
-    
-    Nparticle = []
-    for i in ts:
-        NN = np.count_nonzero(t==i)
-        Nparticle.append(NN)
-        
-    return(Nparticle)
-"""
-    
-    
