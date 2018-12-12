@@ -6,6 +6,7 @@ import os
 import sys
 from datetime import datetime
 import pickle as pi
+from animate_results import load_and_set, animate
 
 
 class SPH_main(object):
@@ -99,7 +100,7 @@ class SPH_main(object):
                 self.place_point(x, tmp_max[1], bound=1)
 
             # left and right (removing corners)
-            tmp = np.arange(tmp_min[0], tmp_max[0] + self.lil_bit, self.dx)
+            tmp = np.arange(tmp_min[1], tmp_max[1] + self.lil_bit, self.dx)
             for i, y in enumerate(tmp):
                 if i != 0 and i != len(tmp)-1:
                     self.place_point(tmp_min[0], y, bound=1)
@@ -430,12 +431,16 @@ if __name__ == '__main__':
         else:
             return 0
 
-    domain = SPH_main(x_min=[0, 0], x_max=[20, 20], dx=1)
+    # set up and run
+    domain = SPH_main(x_min=[0, 0], x_max=[10, 30], dx=1)
     domain.determine_values()
     domain.initialise_grid(f)
     domain.allocate_to_grid()
     domain.set_up_save()
-  
-    domain.timestepping(tf=10)
-    domain.plot_current_state()
+
+    domain.timestepping(tf=0.5)
+
+    # animate
+    ani = load_and_set(domain.file.name, 'Density')
+    ani.animate()
     plt.show()
