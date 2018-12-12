@@ -25,18 +25,20 @@ class animate():
         self.z = z
         self.times = times
         self.N = len(times)
-        assert self.N == x.shape[0] == y.shape[0] == z.shape[0], \
+        assert self.N == len(x) == len(y) == len(z), \
             'all inputs need same number of time entries'
-        assert x.shape[1] == y.shape[1] == z.shape[1], \
-            'all inputs need same number of points enteries'
+#        assert x.shape[1] == y.shape[1] == z.shape[1], \
+#            'all inputs need same number of points enteries'
 
         # setup options
         self.save = ''
         self.interval = 20
-        r_x = self.x.max() - self.x.min()
-        r_y = self.y.max() - self.y.min()
-        self.xlims = np.array([self.x.min() - r_x/10, self.x.max() + r_x/10])
-        self.ylims = np.array([self.y.min() - r_y/10, self.y.max() + r_y/10])
+        x_max, x_min = max(self.x[0]), min(self.x[0])
+        y_max, y_min = max(self.y[0]), min(self.y[0])
+        r_x = x_max - x_min
+        r_y = y_max - y_min
+        self.xlims = np.array([x_min - r_x/10, x_max + r_x/10])
+        self.ylims = np.array([y_min - r_y/10, y_max + r_y/10])
 
     def blank(self):
         self.scat = self.ax.scatter([], [])
@@ -78,16 +80,15 @@ def load_and_set(file_name, color_key='V_x'):
     times = np.unique(data.index)
     x, y, z = [], [], []
     for t in times:
-        x.append(np.array(data.loc[t]['R_x']))
-        y.append(np.array(data.loc[t]['R_y']))
-        z.append(np.array(data.loc[t][color_key]))
-    x, y, z = np.array(x), np.array(y), np.array(z)
+        x.append(data.loc[t]['R_x'])
+        y.append(data.loc[t]['R_y'])
+        z.append(data.loc[t][color_key])
 
     # run animation
     ani = animate(x, y, z, times)
     return ani
 
-#ani = load_and_set('raw_data/2018-12-12-14hr-51m.csv', 'Density')
+#ani = load_and_set('results/.csv', 'Density')
 ani = load_and_set(domain.file.name, 'Density')
 ani.animate()
 plt.show()
