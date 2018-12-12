@@ -7,6 +7,7 @@ import sys
 from datetime import datetime
 import pickle as pi
 from animate_results import load_and_set, animate
+import warnings
 
 
 class SPH_main(object):
@@ -20,6 +21,8 @@ class SPH_main(object):
         self.w_fac1 = 0.0
         self.w_fac2 = 0.0
         self.file = None
+        self.P_ref = 0.0
+        self.d_ref = 0.0
 
         # set given attributes
         self.dx = dx
@@ -53,6 +56,9 @@ class SPH_main(object):
         self.B = self.rho0 * self.c0 ** 2 / self.gamma  # pressure constant (Pa)
         self.w_fac1 = 10 / (7 * np.pi * self.h ** 2)  # constant often used
         self.w_fac2 = 10 / (7 * np.pi * self.h ** 3)  # constant often used
+
+        self.P_ref = self.B * (1.05 ** self.gamma - 1)
+        self.d_ref = 0.9 * self.dx
 
     def initialise_grid(self, func):
         """
@@ -179,12 +185,11 @@ class SPH_main(object):
         j_list = np.sqrt(np.sum(r ** 2, axis=1)) / self.h
         assert ((j_list >= 0).all()), "q must be a positive value"
 
-        w_fac = 10 / (7 * np.pi * self.h ** 2)
         for i, q in enumerate(j_list):
             if 0 <= q < 1:
-                j_list[i] = w_fac * (1 - 1.5 * q ** 2 + 0.75 * q ** 3)
+                j_list[i] = self.w_fac1 * (1 - 1.5 * q ** 2 + 0.75 * q ** 3)
             elif 1 <= q <= 2:
-                j_list[i] = w_fac * (0.25 * (2 - q) ** 3)
+                j_list[i] = self.w_fac1 * (0.25 * (2 - q) ** 3)
             else:
                 j_list[i] = 0
         return np.array(j_list)
@@ -210,12 +215,11 @@ class SPH_main(object):
         j_list = np.sqrt(np.sum(r ** 2, axis=1)) / self.h
         assert ((j_list >= 0).all()), "q must be a positive value"
 
-        w_fac = 10 / (7 * np.pi * self.h ** 3)
         for i, q in enumerate(j_list):
             if 0 <= q < 1:
-                j_list[i] = w_fac * (-3 * q + (9 / 4) * q ** 2)
+                j_list[i] = self.w_fac2 * (-3 * q + (9 / 4) * q ** 2)
             elif 1 <= q <= 2:
-                j_list[i] = w_fac * (-(3 / 4) * (2 - q) ** 2)
+                j_list[i] = self.w_fac2 * (-(3 / 4) * (2 - q) ** 2)
             else:
                 j_list[i] = 0
         return np.array(j_list)
@@ -232,6 +236,32 @@ class SPH_main(object):
         assert ((p_j_rho > 0).all()), "density must be always positive"
         rho = np.sum(w_list) / np.sum(w_list / p_j_rho)
         return rho
+
+    def LJ_boundary_force(self, p):
+        r_wall_left = abs(p.x[0] - self.min_x[0])
+        if r_wall_left != 0:
+            q_ref_left = self.d_ref / r_wall_left
+            if q_ref_left > 1:
+                p.a[0] = p.a[0] + (self.P_ref * (q_ref_left ** 4 - q_ref_left ** 2) / (r_wall_left * p.rho))
+
+        r_wall_bottom = abs(p.x[1] - self.min_x[1])
+        if r_wall_bottom != 0:
+            q_ref_bottom = self.d_ref / r_wall_bottom
+            if q_ref_bottom > 1:
+                p.a[1] = p.a[1] + (self.P_ref * (q_ref_bottom ** 4 - q_ref_bottom ** 2) / (r_wall_bottom * p.rho))
+
+        r_wall_right = abs(p.x[0] - self.max_x[0])
+        if r_wall_right != 0:
+            q_ref_right = self.d_ref / r_wall_right
+            if q_ref_right > 1:
+                p.a[0] = p.a[0] - (self.P_ref * (q_ref_right ** 4 - q_ref_right ** 2) / (r_wall_right * p.rho))
+
+        r_wall_top = abs(p.x[1] - self.max_x[1])
+        if r_wall_top != 0:
+            q_ref_top = self.d_ref / r_wall_top
+            if q_ref_top > 1:
+                p.a[1] = p.a[1] - (self.P_ref * (q_ref_top ** 4 - q_ref_top ** 2) / (r_wall_top * p.rho))
+        return None
 
     def timestepping(self, tf):
         """Timesteps the physical problem with a set dt until user-specified time is reached"""
@@ -271,6 +301,8 @@ class SPH_main(object):
                         p_i.a = p_i.a + (self.mu * p_j.m *(1 / p_i.rho**2 +
                                          1 / p_j.rho**2) * dW_i[j] * v_ij / r_mod)
 
+                        self.LJ_boundary_force(p_i)
+
                         p_i.D = p_i.D + p_j.m * dW_i[j] * (v_ij[0] * e_ij[0] + v_ij[1] * e_ij[1])
 
                         v_ij_max = np.amax((np.linalg.norm(v_ij), v_ij_max))
@@ -282,6 +314,7 @@ class SPH_main(object):
                 elif p_i.adj == []:
                     # provisionary solution to dealing with leaks: if no neighbours are found,
                     # delete particle from particles_list
+                    warnings.warn("Particle %g has leaked" % (p_i.id))
                     self.particle_list.remove(p_i)
 
             """GET DT"""
@@ -331,11 +364,15 @@ class SPH_main(object):
                         p_i.a = p_i.a + (self.mu * p_j.m * (1 / p_i.rho ** 2 +
                                                             1 / p_j.rho ** 2) * dW_i[j] * v_ij / r_mod)
 
+                        self.LJ_boundary_force(p_i)
+
                         p_i.D = p_i.D + p_j.m * dW_i[j] * (v_ij[0] * e_ij[0] + v_ij[1] * e_ij[1])
+
 
                 elif p_i.adj == []:
                     # provisionary solution to dealing with leaks: if no neighbours are found,
                     # delete particle from particles_list
+                    warnings.warn("Particle %g has leaked" % (p_i.id))
                     self.particle_list.remove(p_i)
 
 
@@ -446,6 +483,7 @@ class SPH_main(object):
             self.file.write(string)
 
 
+
 class SPH_particle(object):
     """Object containing all the properties for a single particle"""
 
@@ -460,8 +498,8 @@ class SPH_particle(object):
         self.v_temp = np.zeros(2)
         self.a = np.zeros(2)
         self.D = 0
-        self.rho = 0.
-        self.rho_temp = 0
+        self.rho = 0.0
+        self.rho_temp = 0.0
         self.P = 0.0
         self.m = 0.0
         self.bound = None
@@ -474,90 +512,6 @@ class SPH_particle(object):
         """
         self.list_num = np.array((self.x - self.main_data.min_x) /
                                  (2.0 * self.main_data.h), int)
-
-
-    def set_up_save(self, name=None, path='raw_data/'):
-        """
-        Saves the initial setup of the system and creates the csv file to
-        store ongoing results as solution runs.
-        Files are stored with name in file path (defaults to raw_data folder
-        with name given by the time of the simulation).
-        """
-
-        # pick a defualt name if none given
-        time = datetime.now().strftime('%Y-%m-%d-%Hhr-%Mm')
-        if name is None:
-            name = time
-        assert type(name) is str, 'Name must be a string'
-        assert os.path.isdir(path), path + ' directory does not exist'
-        assert self.file is None, "can't run twice as pickling an open file"
-
-        # save the config file
-        file = open(path + name + '_config.pkl', 'wb')
-        to_save = vars(self).copy()
-        [to_save.pop(key) for key in ('search_grid', 'particle_list')]
-        pi.dump(to_save, file, pi.HIGHEST_PROTOCOL)
-        file.close()
-
-        # set up the csv file
-        # replace any previous file with same name
-        self.file = open(path + name + '.csv', 'wb').close()
-        # open the new file in append mode
-        self.file = open(path + name + '.csv', 'a')
-        # header comments
-        self.file.write('# Created by team Southern on ' + time + '\n')
-        # set add in the column titles
-        self.file.write("# [s], , [m], [m], [m/s], [m/s], [m/s^2], [m/s^2]," +
-                        " [Pa], [Kg/(m^3)], [bool]\n")
-        self.file.write("Time,ID,R_x,R_y,V_x,V_y,a_x,a_y,Pressure," +
-                        "Density,Boundary\n")
-        print('saving to ' + path + name + '.csv ...')
-        # save initial state
-        # self.save_state()
-
-        def save_state(self):
-            """
-            Append the current state of every particle in the system to the
-            end of the csv file.
-            """
-            assert self.file is not None, 'set_up_save() has not been run'
-
-            for p in self.particle_list:
-                string = ''.join([str(v) + ','
-                                  for v in (self.t_curr, p.id, p.x[0], p.x[1],
-                                            p.v[0], p.v[1], p.a[0], p.a[1], p.P,
-                                            p.rho, p.bound)]) + '\n'
-                self.file.write(string)
-
-
-    class SPH_particle(object):
-        """Object containing all the properties for a single particle"""
-
-        _ids = count(0)
-
-        def __init__(self, main_data=None, x=np.zeros(2)):
-            self.id = next(self._ids)
-            self.main_data = main_data
-            self.x = np.array(x)
-            self.x_temp = np.array(x)
-            self.v = np.zeros(2)
-            self.v_temp = np.zeros(2)
-            self.a = np.zeros(2)
-            self.D = 0
-            self.rho = 0.0
-            self.rho_temp = 0.0
-            self.P = 0.0
-            self.m = 0.0
-            self.bound = None
-            self.adj = []
-
-        def calc_index(self):
-            """
-            Calculates the 2D integer index for the particle's
-            location in the search grid
-            """
-            self.list_num = np.array((self.x - self.main_data.min_x) /
-                                     (2.0 * self.main_data.h), int)
 
 
 if __name__ == '__main__':
@@ -574,7 +528,7 @@ if __name__ == '__main__':
     domain.initialise_grid(f)
     domain.allocate_to_grid()
     domain.set_up_save()
-    domain.timestepping(tf=5)
+    domain.timestepping(tf=1)
 
     # animate
     ani = load_and_set(domain.file.name, 'Density')
