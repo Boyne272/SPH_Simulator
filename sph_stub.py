@@ -485,4 +485,3 @@ if __name__ == '__main__':
     domain.plot_current_state()
 
     plt.show()
-
