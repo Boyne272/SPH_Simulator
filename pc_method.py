@@ -255,10 +255,9 @@ class SPH_main(object):
             # Updating the time step
             if count > 0:
                 # cfl_dt = self.h / v_ij_max
-                # f_dt = np.sqr/t(self.h / a_max)
+                # f_dt = np.sqrt(self.h / a_max)
                 # a_dt = np.amin(self.h / (self.c0 * rho_max_condition))
                 # dt = self.CFL * np.amin([cfl_dt, f_dt, a_dt])
-                o = "hi"
 
             # updating each particles values
             """PART 2 STEP 1"""

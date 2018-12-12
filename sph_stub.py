@@ -184,7 +184,7 @@ class SPH_main(object):
         assert(p_i in p_j_list), "must include particle i in this calculation"
         w_list = self.W(p_i, p_j_list)
         p_j_rho = np.array([p.rho for p in p_j_list])
-        assert((p_j_rho > 0).all()), "density must be always positive"
+        #assert((p_j_rho > 0).all()), "density must be always positive"
         rho = np.sum(w_list) / np.sum(w_list / p_j_rho)
         return rho
 
@@ -225,7 +225,13 @@ class SPH_main(object):
                     p_i.a = p_i.a + (self.mu * p_j.m *(1 / p_i.rho**2 +
                                      1 / p_j.rho**2) * dW_i[j] * v_ij / r_mod)
 
-                    p_i.D += p_j.m * dW_i[j] * (v_ij[0]*e_ij[0] + v_ij[1]*e_ij[1])  ######## make this a dot prod!!!
+                    # if p_i.id == 10:
+                    #     print(p_i.D, p_j.m * dW_i[j], v_ij, e_ij)
+                    p_i.D = p_i.D + p_j.m * dW_i[j] * (v_ij[0]*e_ij[0] + v_ij[1]*e_ij[1])  ######## make this a dot prod!!!
+                    # if p_i.id == 10:
+                    #     print(p_i.D)
+                    if dW_i[j] > 0:
+                        print(p_i.id, p_i.D)
 
                     v_ij_max = np.amax((np.linalg.norm(v_ij), v_ij_max))
                 
@@ -267,15 +273,15 @@ class SPH_main(object):
             self.allocate_to_grid()
 
             # save state
-            if count % self.interval_save:
-                self.save_state()
+            # if count % self.interval_save:
+            #     self.save_state()
             # update counts
 
             count += 1
             self.t_curr += dt
 
         print('\nDone!')
-        self.file.close()  # close the save file when done
+        # self.file.close()  # close the save file when done
         return None
 
     def update_dt(self): #, a, v_ij, rho):

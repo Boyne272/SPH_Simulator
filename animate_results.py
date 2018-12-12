@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-load and aniamte code
+load and animate code
 
 Created on Tue Dec 11 23:00:45 2018
 @author: Richard Boyne rmb115@ic.ac.uk
@@ -87,6 +87,6 @@ def load_and_set(file_name, color_key='V_x'):
     ani = animate(x, y, z, times)
     return ani
 
-#ani = load_and_set('raw_data/2018-12-12-10hr-54m.csv', 'Density')
-ani = load_and_set(domain.file.name, 'Density')
+ani = load_and_set('raw_data/2018-12-12-14hr-15m.csv', 'Density')
+#ani = load_and_set(domain.file.name, 'Density')
 ani.animate()
