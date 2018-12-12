@@ -324,7 +324,7 @@ class SPH_main(object):
                 # dt = self.CFL * np.amin([cfl_dt, f_dt, a_dt])
                 o = "hi"
 
-            """PART 2 STEP 1"""
+            """PART 2 STEP 2"""
             for i, p_i in enumerate(self.particle_list):
                 print(p_i.bound)
                 # if particle is not at the boundary
@@ -591,3 +591,5 @@ if __name__ == '__main__':
     domain.plot_current_state()
 
     plt.show()
+
+
