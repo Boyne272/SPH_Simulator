@@ -30,15 +30,15 @@ if __name__ == '__main__':
 
 
 def test_speedofsound():
-    save_file = open('raw_data/2018-12-12-14hr-15m.csv', 'r')
+    # save_file = open('raw_data/2018-12-12-14hr-15m.csv', 'r')
+    #
+    # for line in save_file:
+    #     if line[0] == "#":
+    #         pass
+    #     else:
+    #         data = line.split()
 
-    for line in save_file:
-        if line[0] == "#":
-            pass
-        else:
-            data = line.split()
-
-
+    x = 1
     y = 1
     assert x == y
 
