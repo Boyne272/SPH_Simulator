@@ -89,6 +89,6 @@ def load_and_set(file_name, color_key='V_x'):
     return ani
 
 #ani = load_and_set('results/.csv', 'Density')
-ani = load_and_set(domain.file.name, 'Density')
-ani.animate()
-plt.show()
+#ani = load_and_set(domain.file.name, 'Density')
+#ani.animate()
+#plt.show()
