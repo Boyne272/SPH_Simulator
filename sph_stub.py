@@ -194,18 +194,18 @@ class SPH_main(object):
         time is reached
         """
         dt = 0.1 * self.h / self.c0
-        v_ij_max = 0
+#        v_ij_max = 0
 #        a_max = 0
 #        rho_max_condition = 0
         assert (tf >= dt), "time to short to resolve problem, dt=%.4f" % dt
 
-        count = 0
+        count = 1
         while self.t_curr <= tf:
             sys.stdout.write('\rTime: %.3f' % self.t_curr)
             sys.stdout.flush()
 
             # find all the derivatives for each particle
-            for i, p_i in enumerate(self.particle_list.copy()):
+            for i, p_i in enumerate(self.particle_list):
                 # create list of neighbours for particle i
                 self.neighbour_iterate(p_i)
 
@@ -215,20 +215,21 @@ class SPH_main(object):
                 # calculate rate of change
                 p_i.a = self.g
                 p_i.D = 0
-                for j, p_j in enumerate(p_i.adj.copy()):
+                for j, p_j in enumerate(p_i.adj):
                     r_vec = p_i.x - p_j.x
                     r_mod = np.sqrt(np.sum(r_vec ** 2))
                     e_ij = r_vec / r_mod
                     v_ij = p_i.v - p_j.v
                     p_i.a = p_i.a - (p_j.m * (p_i.P / p_i.rho ** 2 +
                                      p_j.P / p_j.rho ** 2) * dW_i[j] * e_ij)
-                    p_i.a = p_i.a + (self.mu * p_j.m *(1 / p_i.rho**2 +
+                    p_i.a = p_i.a + (self.mu * p_j.m * (1 / p_i.rho**2 +
                                      1 / p_j.rho**2) * dW_i[j] * v_ij / r_mod)
 
-                    p_i.D += p_j.m * dW_i[j] * (v_ij[0]*e_ij[0] + v_ij[1]*e_ij[1])  ######## make this a dot prod!!!
+                    p_i.D = p_i.D + p_j.m * dW_i[j] * (v_ij[0]*e_ij[0] + v_ij[1]*e_ij[1])  ######## make this a dot prod!!!
+#                    p_i.D += p_j.m * dW_i[j] * v_ij.dot(e_ij)
 
-                    v_ij_max = np.amax((np.linalg.norm(v_ij), v_ij_max))
-                
+#                    v_ij_max = np.amax((np.linalg.norm(v_ij), v_ij_max))
+                print(p_i.D)
                 # find the update timestep params
 #                a_max = np.amax((np.linalg.norm(p_i.a), a_max))
 #                rho_condition = np.sqrt((p_i.rho/self.rho0)**(self.gamma-1))
@@ -241,13 +242,13 @@ class SPH_main(object):
                 # a_dt = np.amin(self.h / (self.c0 * rho_max_condition))
                 # dt = self.CFL * np.amin([cfl_dt, f_dt, a_dt])
                 pass
-            
+
             # updating each particles values
             for i, p_i in enumerate(self.particle_list):
                 # if particle is not at the boundary
                 if not p_i.bound:
                     p_i.x = p_i.x + dt * p_i.v  # update position
-                                                # needs to be before velocity
+                    # positions needs to be before velocity
                     p_i.v = p_i.v + dt * p_i.a  # update velocity
 
                 p_i.rho = p_i.rho + dt * p_i.D  # update density
@@ -276,25 +277,26 @@ class SPH_main(object):
         self.file.close()  # close the save file when done
         return None
 
-    def update_dt(self): #, a, v_ij, rho):
-        """
-        To be deleted if v_ij or a are not used as attributes of particles
-        :return: chosen time step for the iteration
-        """
-
-        v_ij = [p.v_ij for p in self.particle_list]
-        v_ij_max = np.amax(v_ij)
-        cfl_dt = self.h / v_ij_max
-
-        #a = [p.a for p in self.particle_list]
-        a_max = np.amax(a)
-        f_dt = np.sqrt(self.h / a_max)
-
-        #rho = [p.rho for p in self.particle_list]
-        a_dt = np.amin(self.h / (self.c0 * np.sqrt((rho / self.rho0) ** (self.gamma - 1))))
-
-        chosen_dt = self.CFL * np.amin([cfl_dt, f_dt, a_dt])
-        return chosen_dt
+#    def update_dt(self): #, a, v_ij, rho):
+#        """
+#        To be deleted if v_ij or a are not used as attributes of particles
+#        :return: chosen time step for the iteration
+#        """
+#
+#        v_ij = [p.v_ij for p in self.particle_list]
+#        v_ij_max = np.amax(v_ij)
+#        cfl_dt = self.h / v_ij_max
+#
+#        #a = [p.a for p in self.particle_list]
+#        a_max = np.amax(a)
+#        f_dt = np.sqrt(self.h / a_max)
+#
+#        #rho = [p.rho for p in self.particle_list]
+#        a_dt = np.amin(self.h / (self.c0 *
+#               np.sqrt((rho / self.rho0) ** (self.gamma - 1))))
+#
+#        chosen_dt = self.CFL * np.amin([cfl_dt, f_dt, a_dt])
+#        return chosen_dt
 
     def set_up_save(self, name=None, path='raw_data/'):
         """
@@ -454,5 +456,4 @@ if __name__ == '__main__':
     # domain = init_grid_better()
     domain.timestepping(tf=1)
     domain.plot_current_state()
-
     plt.show()
