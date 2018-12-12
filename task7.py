@@ -7,7 +7,6 @@ import sys
 from datetime import datetime
 import pickle as pi
 from animate_results import load_and_set, animate
-import warnings
 
 
 class SPH_main(object):
@@ -26,16 +25,16 @@ class SPH_main(object):
 
         # set given attributes
         self.dx = dx
-        self.t_curr = 0.0  # current time of the system (s)
+        self.t_curr = 0.0                   # current time of the system (s)
         self.h_fac = 1.3
-        self.mu = 0.001  # viscosity (Pa s)
-        self.rho0 = 1000  # initial particle density (kg/m^3)
-        self.c0 = 20  # speed of sound in water (m/s)
-        self.gamma = 7  # stiffness value, dimensionless
-        self.interval_smooth = 15  # timesteps to smooth rho
-        self.interval_save = 15  # timesteps to save the state
-        self.CFL = 0.2  # CFL constant, dimensionless
-        self.g = 9.81 * np.array([0, -1])  # gravity value (m/s^2)
+        self.mu = 0.001                     # viscosity (Pa s)
+        self.rho0 = 1000                    # initial particle density (kg/m^3)
+        self.c0 = 20                        # speed of sound in water (m/s)
+        self.gamma = 7                      # stiffness value, dimensionless
+        self.interval_smooth = 15           # timesteps to smooth rho
+        self.interval_save = 15             # timesteps to save the state
+        self.CFL = 0.2                      # CFL constant, dimensionless
+        self.g = 9.81 * np.array([0, -1])   # gravity value (m/s^2)
 
         # set the limits
         self.min_x = np.zeros(2)
@@ -51,13 +50,12 @@ class SPH_main(object):
     def determine_values(self):
         """Set simulation parameters."""
 
-        self.h = self.dx * self.h_fac  # bin half-size
-        self.lil_bit = self.dx * 0.01  # to include upper limits
-        self.B = self.rho0 * self.c0 ** 2 / self.gamma  # pressure constant (Pa)
+        self.h = self.dx*self.h_fac                   # bin half-size
+        self.lil_bit = self.dx*0.01                   # to include upper limits
+        self.B = self.rho0 * self.c0**2 / self.gamma  # pressure constant (Pa)
         self.w_fac1 = 10 / (7 * np.pi * self.h ** 2)  # constant often used
         self.w_fac2 = 10 / (7 * np.pi * self.h ** 3)  # constant often used
-
-        self.P_ref = self.B * (1.05 ** self.gamma - 1)
+        self.P_ref = self.B*(1.05**self.gamma - 1)
         self.d_ref = 0.9 * self.dx
 
     def initialise_grid(self, func):
@@ -84,14 +82,14 @@ class SPH_main(object):
             'there is a duplicate point'
 
         # setup the search array (find size then create array)
-        self.max_list = np.array((self.max_x - self.min_x) / (2.0 * self.h) + 1, int)
+        self.max_list = np.array((self.max_x-self.min_x)/(2.0*self.h)+1, int)
         self.search_grid = np.empty(self.max_list, object)
 
     def add_boundaries(self):
         "add the boundary points so at least 2h around the edge "
         # create the boundary points
         tmp_diff = 0
-        while tmp_diff < 2.0 * self.h:
+        while tmp_diff < 2.0*self.h:
             tmp_diff += self.dx
             tmp_min = self.min_x - tmp_diff
             tmp_max = self.max_x + tmp_diff
@@ -104,7 +102,7 @@ class SPH_main(object):
             # left and right (removing corners)
             tmp = np.arange(tmp_min[1], tmp_max[1] + self.lil_bit, self.dx)
             for i, y in enumerate(tmp):
-                if i != 0 and i != len(tmp) - 1:
+                if i != 0 and i != len(tmp)-1:
                     self.place_point(tmp_min[0], y, bound=1)
                     self.place_point(tmp_max[0], y, bound=1)
 
@@ -121,8 +119,7 @@ class SPH_main(object):
 
         # intiialise physical paramteres of particles
         particle.rho = self.rho0
-        particle.rho_temp = self.rho0
-        particle.m = self.dx ** 2 * self.rho0
+        particle.m = self.dx**2 * self.rho0
         particle.P = 0.
         particle.bound = bound
 
@@ -147,7 +144,7 @@ class SPH_main(object):
                            min(part.list_num[1] + 2, self.max_list[1])):
                 for other_part in self.search_grid[i, j]:
                     if part is not other_part:
-                        dn = part.x - other_part.x  # ########### use this later
+                        dn = part.x - other_part.x  # ####### use this later
                         dist = np.sqrt(np.sum(dn ** 2))
                         if dist < 2.0 * self.h:
                             part.adj.append(other_part)
@@ -164,62 +161,46 @@ class SPH_main(object):
         plt.scatter(x[:, 0], x[:, 1], c=bs)
         plt.gca().set(xlabel='x', ylabel='y', title='Current State')
 
-    def W(self, p_i, p_j_list, step):
+    def W(self, p_i, p_j_list):
         """
         :param p_i: (object) position of particle where calculations are being performed
         :param p_j_list: (list of objects) position of particles influencing particle i
-        :param step: PC step, value 1 or 2
         :return: (np array) smoothing factor for particle i being affected by particles j
         """
-        xi = 0
-        xj = 0
-
-        if step == 1:
-            xi = p_i.x
-            xj = np.array([p.x for p in p_j_list])
-        if step == 2:
-            xi = p_i.x_temp
-            xj = np.array([p.x_temp for p in p_j_list])
-
+        xi = p_i.x
+        xj = np.array([p.x for p in p_j_list])
         r = xi - xj
         j_list = np.sqrt(np.sum(r ** 2, axis=1)) / self.h
         assert ((j_list >= 0).all()), "q must be a positive value"
 
+        w_fac = 10 / (7 * np.pi * self.h ** 2)
         for i, q in enumerate(j_list):
             if 0 <= q < 1:
-                j_list[i] = self.w_fac1 * (1 - 1.5 * q ** 2 + 0.75 * q ** 3)
+                j_list[i] = w_fac * (1 - 1.5 * q ** 2 + 0.75 * q ** 3)
             elif 1 <= q <= 2:
-                j_list[i] = self.w_fac1 * (0.25 * (2 - q) ** 3)
+                j_list[i] = w_fac * (0.25 * (2 - q) ** 3)
             else:
                 j_list[i] = 0
         return np.array(j_list)
 
-    def dW(self, p_i, p_j_list, step):
+    def dW(self, p_i, p_j_list):
         """
         :param p_i: (object) position of particle where calculations are being performed
         :param p_j_list: (list of objects) position of particles influencing particle i
-        :param step: PC step, value 1 or 2
         :return: (np array) derivative of smoothing factor for particle i being affected by particles j
         """
-        xi = 0
-        xj = 0
-
-        if step == 1:
-            xi = p_i.x
-            xj = np.array([p.x for p in p_j_list])
-        if step == 2:
-            xi = p_i.x_temp
-            xj = np.array([p.x_temp for p in p_j_list])
-
+        xi = p_i.x
+        xj = np.array([p.x for p in p_j_list])
         r = xi - xj
         j_list = np.sqrt(np.sum(r ** 2, axis=1)) / self.h
         assert ((j_list >= 0).all()), "q must be a positive value"
 
+        w_fac = 10 / (7 * np.pi * self.h ** 3)
         for i, q in enumerate(j_list):
             if 0 <= q < 1:
-                j_list[i] = self.w_fac2 * (-3 * q + (9 / 4) * q ** 2)
+                j_list[i] = w_fac * (-3 * q + (9 / 4) * q ** 2)
             elif 1 <= q <= 2:
-                j_list[i] = self.w_fac2 * (-(3 / 4) * (2 - q) ** 2)
+                j_list[i] = w_fac * (-(3 / 4) * (2 - q) ** 2)
             else:
                 j_list[i] = 0
         return np.array(j_list)
@@ -231,7 +212,7 @@ class SPH_main(object):
         :return: (np array) smoothed density of particle i
         """
         assert (p_i in p_j_list), "must include particle i in this calculation"
-        w_list = self.W(p_i, p_j_list, 1)
+        w_list = self.W(p_i, p_j_list)
         p_j_rho = np.array([p.rho for p in p_j_list])
         assert ((p_j_rho > 0).all()), "density must be always positive"
         rho = np.sum(w_list) / np.sum(w_list / p_j_rho)
@@ -263,20 +244,62 @@ class SPH_main(object):
                 p.a[1] = p.a[1] - (self.P_ref * (q_ref_top ** 4 - q_ref_top ** 2) / (r_wall_top * p.rho))
         return None
 
+    def R_artificial_pressure(self, p_i, p_j_list):
+        R_i = np.zeros((len(p_j_list)))
+        R_j = np.zeros((len(p_j_list)))
+        for j, p_j in enumerate(p_j_list):
+            if p_i.P < 0:
+                R_i[j] = 0.2 * p_i.P/(p_i.rho**2)
+            else:
+                R_i[j] = 0.01*( (p_i.P/(p_i.rho**2)) + (p_j.P/(p_j.rho**2)))
+
+            if p_j.P < 0:
+                R_j[j] = 0.2 * p_j.P/(p_j.rho**2)
+            else:
+                R_j[j] = 0.01*( (p_j.P/(p_j.rho**2)) + (p_i.P/(p_i.rho**2)))
+
+        R = R_i + R_j
+        return R
+
+
+    def dW_artificial_pressure(self, p_i, p_j_list):
+        """
+        :param p_i: (object) position of particle where calculations are being performed
+        :param p_j_list: (list of objects) position of particles influencing particle i
+        :return: (np array) derivative of smoothing factor for particle i being affected by particles j
+        """
+        xi = p_i.x
+        xj = np.array([p.x for p in p_j_list])
+        r = xi - xj
+        j_list = np.sqrt(np.sum(r ** 2, axis=1)) / self.h
+        assert ((j_list >= 0).all()), "q must be a positive value"
+
+        w_fac1 = 40 / (7 * np.pi * self.h ** 3)
+        w_fac2 = -30/ (7 * np.pi * self.h ** 3)
+        for i, q in enumerate(j_list):
+            if 0 <= q < 1:
+                j_list[i] = w_fac1 * (-3 * q + (9/4) * q) * (1 - (3/2) * q**2 + (3/4) * q**3)**3
+            elif 1 <= q <= 2:
+                j_list[i] = w_fac2 * (2 - q)**3
+            else:
+                j_list[i] = 0
+        return np.array(j_list)
+
+
+
     def timestepping(self, tf):
         """Timesteps the physical problem with a set dt until user-specified time is reached"""
         dt = 0.1 * self.h / self.c0
         v_ij_max = 0
         a_max = 0
         rho_max_condition = 0
-        assert (tf >= dt), "time to short to resolve problem, dt=%.4f" % dt
+        assert (tf >= dt), "time to short to resolve problem, dt=%.4f" % (dt)
 
         count = 1
         while self.t_curr <= tf:
             sys.stdout.write('\rTime: %.3f' % self.t_curr)
             sys.stdout.flush()
 
-            """PART 1 STEP 1"""
             # find all the derivatives for each particle
             for i, p_i in enumerate(self.particle_list):
                 # create list of neighbours for particle i
@@ -284,7 +307,9 @@ class SPH_main(object):
 
                 if p_i.adj != []:
                     # calculate smoothing contribution from all neighbouring particles
-                    dW_i = self.dW(p_i, p_i.adj, 1)
+                    dW_i = self.dW(p_i, p_i.adj)
+                    f = self.dW_artificial_pressure(p_i, p_i.adj)
+                    R = self.R_artificial_pressure(p_i, p_i.adj)
 
                     # calculate acceleration and rate of change of density, find maximum relative velocity
                     # amongst all particles and their neighbours and the maximum acceleration amongst particles
@@ -300,6 +325,7 @@ class SPH_main(object):
                                          p_j.P / p_j.rho ** 2) * dW_i[j] * e_ij)
                         p_i.a = p_i.a + (self.mu * p_j.m *(1 / p_i.rho**2 +
                                          1 / p_j.rho**2) * dW_i[j] * v_ij / r_mod)
+                        p_i.a = p_i.a + R[j]*f[j]
 
                         self.LJ_boundary_force(p_i)
 
@@ -311,13 +337,12 @@ class SPH_main(object):
                     a_max = np.amax((np.linalg.norm(p_i.a), a_max))
                     rho_condition = np.sqrt((p_i.rho/self.rho0)**(self.gamma-1))
                     rho_max_condition = np.amax((rho_max_condition, rho_condition))
+
                 elif p_i.adj == []:
                     # provisionary solution to dealing with leaks: if no neighbours are found,
                     # delete particle from particles_list
-                    warnings.warn("Particle %g has leaked" % (p_i.id))
                     self.particle_list.remove(p_i)
 
-            """GET DT"""
             # Updating the time step
             if count > 1:
                 cfl_dt = self.h / v_ij_max
@@ -325,82 +350,17 @@ class SPH_main(object):
                 a_dt = np.amin(self.h / (self.c0 * rho_max_condition))
                 dt = self.CFL * np.amin([cfl_dt, f_dt, a_dt])
 
-            """PART 2 STEP 1"""
+
             # updating each particles values
             for i, p_i in enumerate(self.particle_list.copy()):
                 # if particle is not at the boundary
                 if not p_i.bound:
-                    # update position -- needs to be updated before new velocity is computed
-                    p_i.x_temp = p_i.x + (0.5 *dt * p_i.v)
-
-                    # update velocity
-                    p_i.v_temp = p_i.v + (0.5* dt * p_i.a)
-
-                # for all particles: update density
-                p_i.rho_temp = p_i.rho + (0.5 * dt * p_i.D)
-
-            """PART 1 STEP 2"""
-            # find all the derivatives for each particle
-            for i, p_i in enumerate(self.particle_list):
-                # create list of neighbours for particle i
-                self.neighbour_iterate(p_i)
-
-                if p_i.adj != []:
-                    # calculate smoothing contribution from all neighbouring particles
-                    dW_i = self.dW(p_i, p_i.adj, 2)
-
-                    # calculate acceleration and rate of change of density, find maximum relative velocity
-                    # amongst all particles and their neighbours and the maximum acceleration amongst particles
-                    p_i.a = self.g
-                    p_i.D = 0
-                    for j, p_j in enumerate(p_i.adj.copy()):
-                        r_vec = p_i.x - p_j.x
-                        r_mod = np.sqrt(np.sum(r_vec ** 2))
-                        e_ij = r_vec / r_mod
-                        v_ij = p_i.v - p_j.v
-
-                        p_i.a = p_i.a - (p_j.m * (p_i.P / p_i.rho ** 2 +
-                                                  p_j.P / p_j.rho ** 2) * dW_i[j] * e_ij)
-                        p_i.a = p_i.a + (self.mu * p_j.m * (1 / p_i.rho ** 2 +
-                                                            1 / p_j.rho ** 2) * dW_i[j] * v_ij / r_mod)
-
-                        self.LJ_boundary_force(p_i)
-
-                        p_i.D = p_i.D + p_j.m * dW_i[j] * (v_ij[0] * e_ij[0] + v_ij[1] * e_ij[1])
-
-                elif p_i.adj == []:
-                    # provisionary solution to dealing with leaks: if no neighbours are found,
-                    # delete particle from particles_list
-                    warnings.warn("Particle %g has leaked" % (p_i.id))
-                    self.particle_list.remove(p_i)
-
-
-            """PART 2 STEP 1"""
-            # updating each particles values
-            for i, p_i in enumerate(self.particle_list.copy()):
-                # if particle is not at the boundary
-                if not p_i.bound:
-                    # update position -- needs to be updated before new velocity is computed
-                    p_i.x = p_i.x_temp + (0.5 * dt * p_i.v_temp)
-
-                    # update velocity
-                    p_i.v = p_i.v_temp + (0.5 * dt * p_i.a)
-
-                # for all particles: update density
-                p_i.rho = p_i.rho_temp + (0.5 * dt * p_i.D)
-
-            """PART 3"""
-            for i, p_i in enumerate(self.particle_list.copy()):
-                # if particle is not at the boundary
-                if not p_i.bound:
-                    # update position -- needs to be updated before new velocity is computed
-                    p_i.x = 2*p_i.x - p_i.x_temp
-
-                    # update velocity
-                    p_i.v = 2*p_i.v - p_i.v_temp
+                    p_i.x = p_i.x + dt * p_i.v  # update position
+                    # positions needs to be before velocity
+                    p_i.v = p_i.v + dt * p_i.a  # update velocity
 
                 # for all particles: update density, smooths if count is a multiple of smoothing
-                p_i.rho = 2*p_i.rho - p_i.rho_temp
+                p_i.rho = p_i.rho + dt * p_i.D
                 if count % self.interval_smooth == 0:
                     p_j_list = p_i.adj[:]
                     p_j_list.append(p_i)
@@ -426,7 +386,6 @@ class SPH_main(object):
         # close file
         self.file.close()
         return None
-
 
     def set_up_save(self, name=None, path='raw_data/'):
         """
@@ -467,7 +426,6 @@ class SPH_main(object):
         # save initial state
         # self.save_state()
 
-
     def save_state(self):
         """
         Append the current state of every particle in the system to the
@@ -476,11 +434,11 @@ class SPH_main(object):
         assert self.file is not None, 'set_up_save() has not been run'
 
         for p in self.particle_list:
-            string = ''.join([str(v) + ',' for v in (self.t_curr, p.id, p.x[0],
-                                                     p.x[1], p.v[0], p.v[1], p.a[0], p.a[1],
-                                                     p.P, p.rho, p.bound)]) + '\n'
+            string = ''.join([str(v) + ','
+                              for v in (self.t_curr, p.id, p.x[0], p.x[1],
+                                        p.v[0], p.v[1], p.a[0], p.a[1], p.P,
+                                        p.rho, p.bound)]) + '\n'
             self.file.write(string)
-
 
 
 class SPH_particle(object):
@@ -492,13 +450,10 @@ class SPH_particle(object):
         self.id = next(self._ids)
         self.main_data = main_data
         self.x = np.array(x)
-        self.x_temp = np.array(x)
         self.v = np.zeros(2)
-        self.v_temp = np.zeros(2)
         self.a = np.zeros(2)
         self.D = 0
         self.rho = 0.0
-        self.rho_temp = 0.0
         self.P = 0.0
         self.m = 0.0
         self.bound = None
@@ -521,13 +476,14 @@ if __name__ == '__main__':
         else:
             return 0
 
-
-    domain = SPH_main(x_min=[0, 0], x_max=[20, 10], dx=0.1)
+    # set up and run
+    domain = SPH_main(x_min=[0, 0], x_max=[10, 10], dx=1)
     domain.determine_values()
     domain.initialise_grid(f)
     domain.allocate_to_grid()
     domain.set_up_save()
-    domain.timestepping(tf=10)
+
+    domain.timestepping(tf=5)
 
     # animate
     ani = load_and_set(domain.file.name, 'Density')
