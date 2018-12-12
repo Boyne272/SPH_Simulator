@@ -193,36 +193,42 @@ class SPH_main(object):
             sys.stdout.flush()
 
             # find all the derivatives for each particle
-            for i, p_i in enumerate(self.particle_list.copy()):
+            for i, p_i in enumerate(self.particle_list):
                 # create list of neighbours for particle i
                 self.neighbour_iterate(p_i)
 
-                # calculate smoothing contribution from all neighbouring particles
-                dW_i = self.dW(p_i, p_i.adj)
+                if p_i.adj != []:
+                    # calculate smoothing contribution from all neighbouring particles
+                    dW_i = self.dW(p_i, p_i.adj)
 
-                # calculate acceleration and rate of change of density, find maximum relative velocity
-                # amongst all particles and their neighbours and the maximum acceleration amongst particles
-                p_i.a = self.g
-                p_i.D = 0
-                for j, p_j in enumerate(p_i.adj.copy()):
-                    r_vec = p_i.x - p_j.x
-                    r_mod = np.sqrt(np.sum(r_vec ** 2))
-                    e_ij = r_vec / r_mod
-                    v_ij = p_i.v - p_j.v
+                    # calculate acceleration and rate of change of density, find maximum relative velocity
+                    # amongst all particles and their neighbours and the maximum acceleration amongst particles
+                    p_i.a = self.g
+                    p_i.D = 0
+                    for j, p_j in enumerate(p_i.adj.copy()):
+                        r_vec = p_i.x - p_j.x
+                        r_mod = np.sqrt(np.sum(r_vec ** 2))
+                        e_ij = r_vec / r_mod
+                        v_ij = p_i.v - p_j.v
 
-                    p_i.a = p_i.a - (p_j.m * (p_i.P / p_i.rho ** 2 +
-                                     p_j.P / p_j.rho ** 2) * dW_i[j] * e_ij)
-                    p_i.a = p_i.a + (self.mu * p_j.m *(1 / p_i.rho**2 +
-                                     1 / p_j.rho**2) * dW_i[j] * v_ij / r_mod)
+                        p_i.a = p_i.a - (p_j.m * (p_i.P / p_i.rho ** 2 +
+                                         p_j.P / p_j.rho ** 2) * dW_i[j] * e_ij)
+                        p_i.a = p_i.a + (self.mu * p_j.m *(1 / p_i.rho**2 +
+                                         1 / p_j.rho**2) * dW_i[j] * v_ij / r_mod)
 
-                    p_i.D = p_i.D + p_j.m * dW_i[j] * (v_ij[0] * e_ij[0] + v_ij[1] * e_ij[1])
+                        p_i.D = p_i.D + p_j.m * dW_i[j] * (v_ij[0] * e_ij[0] + v_ij[1] * e_ij[1])
 
-                    v_ij_max = np.amax((np.linalg.norm(v_ij), v_ij_max))
+                        v_ij_max = np.amax((np.linalg.norm(v_ij), v_ij_max))
 
-                # Max values to calculate the time step
-                a_max = np.amax((np.linalg.norm(p_i.a), a_max))
-                rho_condition = np.sqrt((p_i.rho/self.rho0)**(self.gamma-1))
-                rho_max_condition = np.amax((rho_max_condition, rho_condition))
+                    # Max values to calculate the time step
+                    a_max = np.amax((np.linalg.norm(p_i.a), a_max))
+                    rho_condition = np.sqrt((p_i.rho/self.rho0)**(self.gamma-1))
+                    rho_max_condition = np.amax((rho_max_condition, rho_condition))
+
+                elif p_i.adj == []:
+                    # provisionary solution to dealing with leaks: if no neighbours are found,
+                    # delete particle from particles_list
+                    self.particle_list.remove(p_i)
 
             # Updating the time step
             if count > 1:
@@ -405,7 +411,7 @@ if __name__ == '__main__':
     # domain.plot_current_state()
 
     # domain = init_grid_better()
-    domain.timestepping(tf=2)
+    domain.timestepping(tf=6)
     domain.plot_current_state()
 
     plt.show()
