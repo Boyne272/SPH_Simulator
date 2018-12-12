@@ -20,6 +20,8 @@ class SPH_main(object):
         self.w_fac1 = 0.0
         self.w_fac2 = 0.0
         self.file = None
+        self.P_ref = 0.0
+        self.d_ref = 0.0
 
         # set given attributes
         self.dx = dx
@@ -53,6 +55,8 @@ class SPH_main(object):
         self.B = self.rho0 * self.c0**2 / self.gamma  # pressure constant (Pa)
         self.w_fac1 = 10 / (7 * np.pi * self.h ** 2)  # constant often used
         self.w_fac2 = 10 / (7 * np.pi * self.h ** 3)  # constant often used
+        self.P_ref = self.B*(1.05**self.gamma - 1)
+        self.d_ref = 0.9 * self.dx
 
     def initialise_grid(self, func):
         """
@@ -214,6 +218,32 @@ class SPH_main(object):
         rho = np.sum(w_list) / np.sum(w_list / p_j_rho)
         return rho
 
+    def LJ_boundary_force(self, p):
+        r_wall_left = abs(p.x[0] - self.min_x[0])
+        if r_wall_left != 0:
+            q_ref_left = self.d_ref / r_wall_left
+            if q_ref_left > 1:
+                p.a[0] = p.a[0] + (self.P_ref * (q_ref_left ** 4 - q_ref_left ** 2) / (r_wall_left * p.rho))
+
+        r_wall_bottom = abs(p.x[1] - self.min_x[1])
+        if r_wall_bottom != 0:
+            q_ref_bottom = self.d_ref / r_wall_bottom
+            if q_ref_bottom > 1:
+                p.a[1] = p.a[1] + (self.P_ref * (q_ref_bottom ** 4 - q_ref_bottom ** 2) / (r_wall_bottom * p.rho))
+
+        r_wall_right = abs(p.x[0] - self.max_x[0])
+        if r_wall_right != 0:
+            q_ref_right = self.d_ref / r_wall_right
+            if q_ref_right > 1:
+                p.a[0] = p.a[0] - (self.P_ref * (q_ref_right ** 4 - q_ref_right ** 2) / (r_wall_right * p.rho))
+
+        r_wall_top = abs(p.x[1] - self.max_x[1])
+        if r_wall_top != 0:
+            q_ref_top = self.d_ref / r_wall_top
+            if q_ref_top > 1:
+                p.a[1] = p.a[1] - (self.P_ref * (q_ref_top ** 4 - q_ref_top ** 2) / (r_wall_top * p.rho))
+        return None
+
     def timestepping(self, tf):
         """Timesteps the physical problem with a set dt until user-specified time is reached"""
         dt = 0.1 * self.h / self.c0
@@ -250,6 +280,8 @@ class SPH_main(object):
                                          p_j.P / p_j.rho ** 2) * dW_i[j] * e_ij)
                         p_i.a = p_i.a + (self.mu * p_j.m *(1 / p_i.rho**2 +
                                          1 / p_j.rho**2) * dW_i[j] * v_ij / r_mod)
+
+                        self.LJ_boundary_force(p_i)
 
                         p_i.D = p_i.D + p_j.m * dW_i[j] * (v_ij[0] * e_ij[0] + v_ij[1] * e_ij[1])
 
@@ -405,19 +437,10 @@ if __name__ == '__main__':
     domain.initialise_grid(f)
     domain.allocate_to_grid()
     domain.set_up_save()
+
     domain.timestepping(tf=0.5)
 
     # animate
     ani = load_and_set(domain.file.name, 'Density')
     ani.animate()
     plt.show()
-
-#    domain = init_grid_better()
-    # plt.close()
-    # domain.timestepping(tf=15e-3)
-    # domain.plot_current_state()
-
-    # domain = init_grid_better()
-#    domain.timestepping(tf=6)
-#    domain.plot_current_state()
-#    plt.show()
