@@ -268,8 +268,8 @@ class SPH_main(object):
 
             # re-allocate particles to grid
             self.allocate_to_grid()
-            if count % self.interval_save:
-                self.save_state()
+            # if count % self.interval_save:
+            #     self.save_state()
 
             count += 1
             self.t_curr += dt
@@ -309,7 +309,7 @@ class SPH_main(object):
         if name is None:
             name = time
         assert type(name) is str, 'Name must be a string'
-        assert os.path.isdir(path), path + ' directory does not exist'
+        # assert os.path.isdir(path), path + ' directory does not exist'
         assert self.file is None, "can't run twice as pickling an open file"
 
         # save the config file
@@ -438,7 +438,7 @@ if __name__ == '__main__':
                 p.bound = 1
 
         system.allocate_to_grid()
-        system.set_up_save()
+        # system.set_up_save()
         xs = np.array([p.x for p in system.particle_list])
         bs = [p.bound for p in system.particle_list]
         plt.scatter(xs[:, 0], xs[:, 1], c=bs)

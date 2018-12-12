@@ -378,12 +378,12 @@ class SPH_main(object):
             self.allocate_to_grid()
 
 
-            # if count % self.interval_save:
-            #     self.save_state()
+            if count % self.interval_save:
+                self.save_state()
 
             count += 1
             self.t_curr += dt
-        #self.file.close()
+        self.file.close()
         return None
 
     def update_dt(self): #, a, v_ij, rho):
@@ -453,8 +453,8 @@ class SPH_main(object):
 
         for p in self.particle_list:
             # ###################### boundary bool
-            string = ''.join([str(v) + ',' for v in (self.t_curr, p.id, p.x[0],
-                              p.x[1], p.v[0], p.v[1], p.P, p.rho, 1)]) + '\n'
+            string = ''.join([str(v) + ',' for v in (self.t_curr, p.id, p.x2[0],
+                              p.x2[1], p.v2[0], p.v2[1], p.P, p.rho2, p.bound)]) + '\n'
             self.file.write(string)
 
 
@@ -551,10 +551,10 @@ if __name__ == '__main__':
                 p.bound = 1
 
         system.allocate_to_grid()
-        #system.set_up_save()
+        system.set_up_save()
         xs = np.array([p.x2 for p in system.particle_list])
         bs = [p.bound for p in system.particle_list]
-        # plt.scatter(xs[:, 0], xs[:, 1], c=bs)
+        plt.scatter(xs[:, 0], xs[:, 1], c=bs)
 
         return system
 
