@@ -435,7 +435,7 @@ if __name__ == '__main__':
     domain.initialise_grid(f)
     domain.allocate_to_grid()
     domain.set_up_save()
+  
     domain.timestepping(tf=10)
     domain.plot_current_state()
-
-#    plt.show()
+    plt.show()
