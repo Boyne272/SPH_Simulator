@@ -38,27 +38,39 @@ class animate():
         r_y = y_max - y_min
         self.xlims = np.array([x_min - r_x/10, x_max + r_x/10])
         self.ylims = np.array([y_min - r_y/10, y_max + r_y/10])
-
+        self.fig = None
+        
+        # find the color range
+        z_min = min([min(z_) for z_ in z])
+        z_max = max([max(z_) for z_ in z])
+        self.z_lims = [z_min, z_max]
+        
     def blank(self):
         self.scat = self.ax.scatter([], [])
         self.text.set_text('')
         return self.scat, self.text
 
     def update(self, i):
-        self.scat = self.ax.scatter(self.x[i], self.y[i], c=self.z[i])
+        self.scat = self.ax.scatter(self.x[i], self.y[i], s=20, c=self.z[i],
+                                    vmin=self.z_lims[0], vmax=self.z_lims[1])
         self.text.set_text('t={0:.2f}'.format(self.times[i]))
         return self.scat, self.text
 
-    def animate(self):
-        # initialise figure
+    def set_figure(self, title=''):
         self.fig, self.ax = plt.subplots()
-        self.scat = self.ax.scatter([], [])
+#        self.scat = self.ax.scatter([-100, -100], [-100, -100], bs)
+        self.scat = self.ax.scatter([], [], c=[],
+                                    vmin=self.z_lims[0], vmax=self.z_lims[1])
+        self.col = plt.colorbar(self.scat)
         self.text = self.ax.text(0.75, 0.95, '', transform=self.ax.transAxes)
 
         # set axis limits
         self.ax.set_xlim(self.xlims)
         self.ax.set_ylim(self.ylims)
+        self.ax.set(title=title, xlabel='X [m]', ylabel='Y [m]')
 
+    def animate(self):
+        assert self.fig is not None, 'must run set_figure first'
         # animate
         self.ani = FuncAnimation(self.fig,
                                  self.update,
@@ -89,7 +101,8 @@ def load_and_set(file_name, color_key='V_x'):
 
 
 if __name__ == '__main__':
-    ani = load_and_set('raw_data/2018-12-12-16hr-56m.csv', 'Density')
-#    ani = load_and_set(domain.file.name, 'Density')
+#    ani = load_and_set('raw_data/2018-12-12-16hr-56m.csv', 'Density')
+    ani = load_and_set(domain.file.name, 'V_x')
+    ani.set_figure()
     ani.animate()
     plt.show()
