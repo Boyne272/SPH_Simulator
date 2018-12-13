@@ -6,8 +6,8 @@ import sys
 from datetime import datetime
 import pickle as pi
 import warnings
+import time as tm
 from animate_results import load_and_set, animate
-
 
 
 class SPH_main(object):
@@ -36,6 +36,7 @@ class SPH_main(object):
         self.interval_save = 15             # timesteps to save the state
         self.CFL = 0.2                      # CFL constant, dimensionless
         self.g = 9.81 * np.array([0, -1])   # gravity value (m/s^2)
+        self.P_ref_scale = 1.05 ########################################
 
         # set the limits
         self.min_x = np.zeros(2)
@@ -56,7 +57,7 @@ class SPH_main(object):
         self.B = self.rho0 * self.c0**2 / self.gamma  # pressure constant (Pa)
         self.w_fac1 = 10 / (7 * np.pi * self.h ** 2)  # constant often used
         self.w_fac2 = 10 / (7 * np.pi * self.h ** 3)  # constant often used
-        self.P_ref = self.B*(1.05**self.gamma - 1)
+        self.P_ref = self.B*(self.P_ref_scale*self.gamma - 1) ###################################
         self.d_ref = 0.9 * self.dx
 
     def initialise_grid(self, func):
@@ -150,8 +151,55 @@ class SPH_main(object):
                         dist = np.sqrt(np.sum(dn ** 2))
                         if dist < 2.0 * self.h:
                             part.adj.append(other_part)
+                            
+    def neighbour_iterate_half(self, part): #####################################
+        """Find all the particles within 2h of the specified particle"""
+        part.adj = []  # needs to be reseted every time it's called
 
+        # pick the correct sencil points
+        for i in range(max(0, part.list_num[0] - 1),
+                       min(part.list_num[0] + 2, self.max_list[0])):
+            for j in range(max(0, part.list_num[1] - 1),
+                           min(part.list_num[1] + 2, self.max_list[1])):
+                # in the row above
+                if (j == part.list_num[1] + 1):
+                    self.tmp_interate_grid_point1(part, i, j)
+                # if in the current row
+                elif (j == part.list_num[1]):
+                    # left point
+                    if (i == part.list_num[0] - 1):
+                        self.tmp_interate_grid_point1(part, i, j)
+                    # center point
+                    elif (i == part.list_num[0]):
+                        self.tmp_interate_grid_point2(part, i, j)
         return None
+    
+    def tmp_interate_grid_point1(self, part, i, j):  ##############################
+        "not the particle grid"
+        # for all particles in the grid
+        for other_part in self.search_grid[i, j]:
+            # add it to the adjasent list
+            dn = part.x - other_part.x  # ####### use this later
+            dist = np.sqrt(np.sum(dn ** 2))
+            if dist < 2.0 * self.h:
+                part.adj.append(other_part)
+
+    def tmp_interate_grid_point2(self, part, i, j):  ############################
+        "the particle grid point"
+        # for all particles in the grid
+        for other_part in self.search_grid[i, j]:
+
+            # if not the particle
+            if part is not other_part:
+                # if not below current particle
+                if (other_part.id < part.id):
+                    # add it to the adjasent list
+                    dn = part.x - other_part.x  # ####### use this later
+                    dist = np.sqrt(np.sum(dn ** 2))
+                    if dist < 2.0 * self.h:
+                        part.adj.append(other_part)
+                elif (other_part.id == part.id):
+                    print('oh fuck')
 
     def plot_current_state(self):
         """
@@ -252,6 +300,11 @@ class SPH_main(object):
         rho_max_condition = 0
         assert (tf >= dt), "time to short to resolve problem, dt=%.4f" % (dt)
 
+        # initial setup ################################
+        for p_i in self.particle_list:
+            p_i.a = self.g
+            p_i.D = 0
+
         count = 1
         while self.t_curr <= tf:
             sys.stdout.write('\rTime: %.3f' % self.t_curr)
@@ -260,9 +313,7 @@ class SPH_main(object):
             # find all the derivatives for each particle
             for i, p_i in enumerate(self.particle_list):
                 # create list of neighbours for particle i
-                self.neighbour_iterate(p_i)
-                p_i.a = self.g
-                p_i.D = 0
+                self.neighbour_iterate_half(p_i)
 
                 if p_i.adj != []:
                     # calculate smoothing contribution from all neighbouring particles
@@ -276,15 +327,21 @@ class SPH_main(object):
                         e_ij = r_vec / r_mod
                         v_ij = p_i.v - p_j.v
 
-                        p_i.a = p_i.a - (p_j.m * (p_i.P / p_i.rho ** 2 +
+                        # update acceleration and density for p_i 
+                        tmp_a1 = (p_j.m * (p_i.P / p_i.rho ** 2 +
                                          p_j.P / p_j.rho ** 2) * dW_i[j] * e_ij)
-                        p_i.a = p_i.a + (self.mu * p_j.m *(1 / p_i.rho**2 +
+                        p_i.a = p_i.a - tmp_a1
+                        tmp_a2 = (self.mu * p_j.m *(1 / p_i.rho**2 +
                                          1 / p_j.rho**2) * dW_i[j] * v_ij / r_mod)
-
-
-
-                        p_i.D = p_i.D + p_j.m * dW_i[j] * (v_ij[0] * e_ij[0] + v_ij[1] * e_ij[1])
-
+                        p_i.a = p_i.a + tmp_a2
+                        
+                        tmp_d = p_j.m * dW_i[j] * (v_ij[0] * e_ij[0] + v_ij[1] * e_ij[1])
+                        p_i.D = p_i.D + tmp_d
+                        
+                        # do the same for particle j
+                        p_j.a = p_j.a + tmp_a1
+                        p_j.a = p_j.a - tmp_a2
+                        p_j.D = p_j.D + tmp_d
                         v_ij_max = np.amax((np.linalg.norm(v_ij), v_ij_max))
 
                     # implementing boundary repulsion
@@ -311,6 +368,10 @@ class SPH_main(object):
                 dt = self.CFL * np.amin([cfl_dt, f_dt, a_dt])
 
 
+            if count % self.interval_smooth == 0:
+                for p_i in self.particle_list:
+                    self.neighbour_iterate(p_i)
+
             # updating each particles values
             for i, p_i in enumerate(self.particle_list.copy()):
                 # if particle is not at the boundary
@@ -331,6 +392,10 @@ class SPH_main(object):
 
                 # update particle indices
                 p_i.calc_index()
+                
+                # reset a and D
+                p_i.a = self.g
+                p_i.D = 0
 
             # re-allocate particles to grid
             self.allocate_to_grid()
@@ -432,7 +497,7 @@ def sph_simulation(x_min, x_max, t_final, dx, func, path_name='./', ani=True,
                    **kwargs):
     # validate kwargs
     sim_args = ['h_fac', 'mu', 'rho0', 'c0', 'gamma', 'interval_smooth',
-                'interval_save', 'CFL', 'g']
+                'interval_save', 'CFL', 'g', 'P_ref_scale']
     other_args = ['file_name', 'ani_step', 'ani_key']
     for key in kwargs:
         if key not in sim_args + other_args:
@@ -452,16 +517,16 @@ def sph_simulation(x_min, x_max, t_final, dx, func, path_name='./', ani=True,
         system.set_up_save(path=path_name)
 
     # solve the system
+    t = tm.clock()
     system.timestepping(tf=t_final)
+    print('Time taken: ', tm.clock()-t)
 
     # animate result
     if ani:
         if "ani_key" in kwargs:
-            ani = load_and_set(system.file.name, ani_key = kwargs['ani_key'])
-            ani.set_figure(color_key=kwargs['ani_key'])
+            ani = load_and_set(system.file.name, ani_key=kwargs['ani_key'])
         else:
             ani = load_and_set(system.file.name, 'Density')
-            ani.set_figure(color_key='Density')
 
         if 'ani_step' in kwargs:
             ani.animate(ani_step=kwargs['ani_step'])
@@ -480,5 +545,7 @@ if __name__ == '__main__' and 1:
         else:
             return 0
 
-    sph_simulation(x_min=[0, 0], x_max=[20, 10], t_final=0.2, dx=1, func=f, path_name='./raw_data/',
-                   ani_step=10, ani_key="Pressure", file_name="hi")
+    domain = sph_simulation(x_min=[0, 0], x_max=[20, 10], t_final=10, dx=1, func=f,
+                   path_name='./raw_data/', ani_step=10, ani_key="Pressure",
+                   P_ref_scale=2,
+                   file_name="higher_pressure")
