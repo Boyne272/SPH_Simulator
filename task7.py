@@ -1,13 +1,12 @@
 from itertools import count
+
 import numpy as np
 import matplotlib.pyplot as plt
 import os
 import sys
 from datetime import datetime
 import pickle as pi
-import warnings
 from animate_results import load_and_set, animate
-
 
 
 class SPH_main(object):
@@ -66,7 +65,6 @@ class SPH_main(object):
         """
 
         assert self.h is not None, 'must run determine values first'
-        assert callable(func), 'func must be a function'
 
         # set internal points
         for x in np.arange(self.min_x[0], self.max_x[0] + self.lil_bit,
@@ -175,11 +173,12 @@ class SPH_main(object):
         j_list = np.sqrt(np.sum(r ** 2, axis=1)) / self.h
         assert ((j_list >= 0).all()), "q must be a positive value"
 
+        w_fac = 10 / (7 * np.pi * self.h ** 2)
         for i, q in enumerate(j_list):
             if 0 <= q < 1:
-                j_list[i] = self.w_fac1 * (1 - 1.5 * q ** 2 + 0.75 * q ** 3)
+                j_list[i] = w_fac * (1 - 1.5 * q ** 2 + 0.75 * q ** 3)
             elif 1 <= q <= 2:
-                j_list[i] = self.w_fac1 * (0.25 * (2 - q) ** 3)
+                j_list[i] = w_fac * (0.25 * (2 - q) ** 3)
             else:
                 j_list[i] = 0
         return np.array(j_list)
@@ -196,11 +195,12 @@ class SPH_main(object):
         j_list = np.sqrt(np.sum(r ** 2, axis=1)) / self.h
         assert ((j_list >= 0).all()), "q must be a positive value"
 
+        w_fac = 10 / (7 * np.pi * self.h ** 3)
         for i, q in enumerate(j_list):
             if 0 <= q < 1:
-                j_list[i] = self.w_fac2 * (-3 * q + (9 / 4) * q ** 2)
+                j_list[i] = w_fac * (-3 * q + (9 / 4) * q ** 2)
             elif 1 <= q <= 2:
-                j_list[i] = self.w_fac2 * (-(3 / 4) * (2 - q) ** 2)
+                j_list[i] = w_fac * (-(3 / 4) * (2 - q) ** 2)
             else:
                 j_list[i] = 0
         return np.array(j_list)
@@ -244,6 +244,49 @@ class SPH_main(object):
                 p.a[1] = p.a[1] - (self.P_ref * (q_ref_top ** 4 - q_ref_top ** 2) / (r_wall_top * p.rho))
         return None
 
+    def R_artificial_pressure(self, p_i, p_j_list):
+        R_i = np.zeros((len(p_j_list)))
+        R_j = np.zeros((len(p_j_list)))
+        for j, p_j in enumerate(p_j_list):
+            if p_i.P < 0:
+                R_i[j] = 0.2 * p_i.P/(p_i.rho**2)
+            else:
+                R_i[j] = 0.01*( (p_i.P/(p_i.rho**2)) + (p_j.P/(p_j.rho**2)))
+
+            if p_j.P < 0:
+                R_j[j] = 0.2 * p_j.P/(p_j.rho**2)
+            else:
+                R_j[j] = 0.01*( (p_j.P/(p_j.rho**2)) + (p_i.P/(p_i.rho**2)))
+
+        R = R_i + R_j
+        return R
+
+
+    def dW_artificial_pressure(self, p_i, p_j_list):
+        """
+        :param p_i: (object) position of particle where calculations are being performed
+        :param p_j_list: (list of objects) position of particles influencing particle i
+        :return: (np array) derivative of smoothing factor for particle i being affected by particles j
+        """
+        xi = p_i.x
+        xj = np.array([p.x for p in p_j_list])
+        r = xi - xj
+        j_list = np.sqrt(np.sum(r ** 2, axis=1)) / self.h
+        assert ((j_list >= 0).all()), "q must be a positive value"
+
+        w_fac1 = 40 / (7 * np.pi * self.h ** 3)
+        w_fac2 = -30/ (7 * np.pi * self.h ** 3)
+        for i, q in enumerate(j_list):
+            if 0 <= q < 1:
+                j_list[i] = w_fac1 * (-3 * q + (9/4) * q) * (1 - (3/2) * q**2 + (3/4) * q**3)**3
+            elif 1 <= q <= 2:
+                j_list[i] = w_fac2 * (2 - q)**3
+            else:
+                j_list[i] = 0
+        return np.array(j_list)
+
+
+
     def timestepping(self, tf):
         """Timesteps the physical problem with a set dt until user-specified time is reached"""
         dt = 0.1 * self.h / self.c0
@@ -261,15 +304,17 @@ class SPH_main(object):
             for i, p_i in enumerate(self.particle_list):
                 # create list of neighbours for particle i
                 self.neighbour_iterate(p_i)
-                p_i.a = self.g
-                p_i.D = 0
 
                 if p_i.adj != []:
                     # calculate smoothing contribution from all neighbouring particles
                     dW_i = self.dW(p_i, p_i.adj)
+                    f = self.dW_artificial_pressure(p_i, p_i.adj)
+                    R = self.R_artificial_pressure(p_i, p_i.adj)
 
                     # calculate acceleration and rate of change of density, find maximum relative velocity
                     # amongst all particles and their neighbours and the maximum acceleration amongst particles
+                    p_i.a = self.g
+                    p_i.D = 0
                     for j, p_j in enumerate(p_i.adj.copy()):
                         r_vec = p_i.x - p_j.x
                         r_mod = np.sqrt(np.sum(r_vec ** 2))
@@ -280,28 +325,23 @@ class SPH_main(object):
                                          p_j.P / p_j.rho ** 2) * dW_i[j] * e_ij)
                         p_i.a = p_i.a + (self.mu * p_j.m *(1 / p_i.rho**2 +
                                          1 / p_j.rho**2) * dW_i[j] * v_ij / r_mod)
+                        p_i.a = p_i.a + R[j]*f[j]
 
-
+                        self.LJ_boundary_force(p_i)
 
                         p_i.D = p_i.D + p_j.m * dW_i[j] * (v_ij[0] * e_ij[0] + v_ij[1] * e_ij[1])
 
                         v_ij_max = np.amax((np.linalg.norm(v_ij), v_ij_max))
-
-                    # implementing boundary repulsion
-                    self.LJ_boundary_force(p_i)
 
                     # Max values to calculate the time step
                     a_max = np.amax((np.linalg.norm(p_i.a), a_max))
                     rho_condition = np.sqrt((p_i.rho/self.rho0)**(self.gamma-1))
                     rho_max_condition = np.amax((rho_max_condition, rho_condition))
 
-
-                elif ((p_i.x < self.min_x).any() or (p_i.x > self.max_x).any()):
+                elif p_i.adj == []:
                     # provisionary solution to dealing with leaks: if no neighbours are found,
                     # delete particle from particles_list
-                    warnings.warn("Particle %g has leaked"%(p_i.id))
                     self.particle_list.remove(p_i)
-
 
             # Updating the time step
             if count > 1:
@@ -428,51 +468,7 @@ class SPH_particle(object):
                                  (2.0 * self.main_data.h), int)
 
 
-def sph_simulation(x_min, x_max, t_final, dx, func, path_name='./', ani=True,
-                   **kwargs):
-    # validate kwargs
-    sim_args = ['h_fac', 'mu', 'rho0', 'c0', 'gamma', 'interval_smooth',
-                'interval_save', 'CFL', 'g']
-    other_args = ['file_name', 'ani_step', 'ani_key']
-    for key in kwargs:
-        if key not in sim_args + other_args:
-            raise KeyError('Unrecognised key word argument')
-
-    # set the system
-    system = SPH_main(x_min, x_max, dx=dx)
-    for key in kwargs:
-        if key in sim_args:
-            exec('system.' + key + '= kwargs[key]')
-    system.determine_values()
-    system.initialise_grid(func)
-    system.allocate_to_grid()
-    if "file_name" in kwargs:
-        system.set_up_save(name=kwargs['file_name'], path=path_name)
-    else:
-        system.set_up_save(path=path_name)
-
-    # solve the system
-    system.timestepping(tf=t_final)
-
-    # animate result
-    if ani:
-        if "ani_key" in kwargs:
-            ani = load_and_set(system.file.name, ani_key = kwargs['ani_key'])
-            ani.set_figure(color_key=kwargs['ani_key'])
-        else:
-            ani = load_and_set(system.file.name, 'Density')
-            ani.set_figure(color_key='Density')
-
-        if 'ani_step' in kwargs:
-            ani.animate(ani_step=kwargs['ani_step'])
-        else:
-            ani.animate()
-        plt.show()
-
-    return system
-
-
-if __name__ == '__main__' and 1:
+if __name__ == '__main__':
 
     def f(x, y):
         if 0 <= y <= 2 or (0 <= x <= 3 and 0 <= y <= 5):
@@ -480,5 +476,16 @@ if __name__ == '__main__' and 1:
         else:
             return 0
 
-    sph_simulation(x_min=[0, 0], x_max=[20, 10], t_final=0.2, dx=1, func=f, path_name='./raw_data/',
-                   ani_step=10, ani_key="Pressure", file_name="hi")
+    # set up and run
+    domain = SPH_main(x_min=[0, 0], x_max=[10, 10], dx=1)
+    domain.determine_values()
+    domain.initialise_grid(f)
+    domain.allocate_to_grid()
+    domain.set_up_save()
+
+    domain.timestepping(tf=5)
+
+    # animate
+    ani = load_and_set(domain.file.name, 'Density')
+    ani.animate()
+    plt.show()

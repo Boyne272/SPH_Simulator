@@ -1,11 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-load and aniamte code
-
-Created on Tue Dec 11 23:00:45 2018
-@author: Richard Boyne rmb115@ic.ac.uk
-"""
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -39,31 +33,43 @@ class animate():
         r_y = y_max - y_min
         self.xlims = np.array([x_min - r_x/10, x_max + r_x/10])
         self.ylims = np.array([y_min - r_y/10, y_max + r_y/10])
-
+        self.fig = None
+        
+        # find the color range
+        z_min = min([min(z_) for z_ in z])
+        z_max = max([max(z_) for z_ in z])
+        self.z_lims = [z_min, z_max]
+        
     def blank(self):
         self.scat = self.ax.scatter([], [])
         self.text.set_text('')
         return self.scat, self.text
 
     def update(self, i):
-        self.scat = self.ax.scatter(self.x[i], self.y[i], c=self.z[i])
+        self.scat = self.ax.scatter(self.x[i], self.y[i], s=20, c=self.z[i],
+                                    vmin=self.z_lims[0], vmax=self.z_lims[1])
         self.text.set_text('t={0:.2f}'.format(self.times[i]))
         return self.scat, self.text
 
-    def animate(self):
-        # initialise figure
+    def set_figure(self, title='', color_key=''):
         self.fig, self.ax = plt.subplots()
-        self.scat = self.ax.scatter([], [])
+        self.scat = self.ax.scatter([], [], c=[],
+                                    vmin=self.z_lims[0], vmax=self.z_lims[1])
+        self.col = self.fig.colorbar(self.scat)
+        self.col.set_label(color_key)
         self.text = self.ax.text(0.75, 0.95, '', transform=self.ax.transAxes)
 
         # set axis limits
         self.ax.set_xlim(self.xlims)
         self.ax.set_ylim(self.ylims)
+        self.ax.set(title=title, xlabel='X [m]', ylabel='Y [m]')
 
+    def animate(self, ani_step=1):
+        assert self.fig is not None, 'must run set_figure first'
         # animate
         self.ani = FuncAnimation(self.fig,
                                  self.update,
-                                 frames=range(len(self.times)),
+                                 frames=range(0, len(self.times), ani_step),
                                  interval=self.interval,
                                  blit=True,
                                  init_func=self.blank)
@@ -71,7 +77,7 @@ class animate():
             self.ani.save(self.save)
 
 
-def load_and_set(file_name, color_key='V_x'):
+def load_and_set(file_name, ani_key='V_x'):
     # load data
     data = pd.read_csv(file_name, skiprows=2, index_col=False)
     data = data.set_index('Time')
@@ -82,15 +88,15 @@ def load_and_set(file_name, color_key='V_x'):
     for t in times:
         x.append(data.loc[t]['R_x'])
         y.append(data.loc[t]['R_y'])
-        z.append(data.loc[t][color_key])
+        z.append(data.loc[t][ani_key])
 
     # run animation
     ani = animate(x, y, z, times)
+    ani.set_figure(color_key=ani_key)
     return ani
 
 
 if __name__ == '__main__':
-    ani = load_and_set('raw_data/2018-12-12-23hr-39m.csv', 'Density')
-    # ani = load_and_set(domain.file.name, 'Density')
-    ani.animate()
+    ani = load_and_set('./examples/example3.csv', 'Density')
+    ani.animate(ani_step=1)
     plt.show()
