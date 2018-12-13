@@ -527,7 +527,7 @@ if __name__ == '__main__':
     domain.initialise_grid(f)
     domain.allocate_to_grid()
     domain.set_up_save()
-    domain.timestepping(tf=15)
+    domain.timestepping(tf=10)
 
     # animate
     ani = load_and_set(domain.file.name, 'Density')

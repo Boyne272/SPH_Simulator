@@ -62,7 +62,7 @@ class animate():
         # animate
         self.ani = FuncAnimation(self.fig,
                                  self.update,
-                                 frames=range(len(self.times)),
+                                 frames=range(0, len(self.times), 10),
                                  interval=self.interval,
                                  blit=True,
                                  init_func=self.blank)
@@ -89,7 +89,7 @@ def load_and_set(file_name, color_key='V_x'):
 
 
 if __name__ == '__main__':
-    ani = load_and_set('raw_data/2018-12-12-16hr-56m.csv', 'Density')
+    ani = load_and_set('raw_data/2018-12-12-22hr-15m.csv', 'Density')
 #    ani = load_and_set(domain.file.name, 'Density')
     ani.animate()
     plt.show()
