@@ -7,6 +7,8 @@ import sys
 from datetime import datetime
 import pickle as pi
 import warnings
+from animate_results import load_and_set, animate
+
 
 
 class SPH_main(object):
@@ -440,4 +442,7 @@ if __name__ == '__main__':
     domain.timestepping(tf=30)
     domain.plot_current_state()
 
-#    plt.show()
+    # animate
+    ani = load_and_set(domain.file.name, 'Density')
+    ani.animate()
+    plt.show()
