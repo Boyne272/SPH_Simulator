@@ -110,4 +110,4 @@ def test_R_dW_artificial_pressure():
     pj_list = [p_j1, p_j2, p_j3]
 
     assert (np.isclose(system.R_artificial_pressure(p_i, pj_list), [0.00009699, 0.00009699, 0.00009699]).all())
-    assert (np.isclose(system.dW_artificial_pressure(p_i, pj_list), [-0.0387006, -0.0237263, -0.04184862]).all())
+    assert (np.isclose(system.dW_artificial_pressure(p_i, pj_list), [-0.03870062, -0.02372638, -0.04184862]).all())
