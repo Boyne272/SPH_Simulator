@@ -96,7 +96,8 @@ def load_and_set(file_name, ani_key='V_x'):
 
 if __name__ == '__main__':
 
-    ani = load_and_set('raw_data/2018-12-13-11hr-08m.csv', 'Density')
-    ani.animate(ani_step=10)
+#    ani = load_and_set('./raw_data/non_opt_base_line.csv', 'Density')
+    ani = load_and_set(domain.file.name, 'Density')
+    ani.animate(ani_step=1)
 
     plt.show()
