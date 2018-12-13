@@ -1,4 +1,10 @@
 # -*- coding: utf-8 -*-
+"""
+Created on Wed Dec 12 17:10:21 2018
+
+@author: karad
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -98,17 +104,18 @@ def peak(file_name, mv_avN, wallpos):
     """
     x, y, t =  Read(file_name)
 
+    
     x=np.array(x)
     y=np.array(y)
     t=np.array(t)
 
     # time values without repetition
-    ts= list(set(t))
+    ts_unsorted= list(set(t))
+    ts = np.sort(ts_unsorted)
+    
     # tindex = start index of each time
     tindex = t_index(t)
-    
-    # time values without repetition
-    ts= list(set(t))
+    #print(tindex)
 
     Crest_height=[]
     Crest_xcoords=[]
@@ -129,15 +136,20 @@ def peak(file_name, mv_avN, wallpos):
         
         if coord >= wallpos:
             t_sloshing.append(ts[i])
-        
+            
+        #print(tindex[i])
+        #print(gridpointsX)
+        #print(gridpointsY)
+        #print(t_sloshing)
+        #print(max(gridpointsY), Peak_Indx, coord)
     #plt.plot(ts, Crest_xcoords, 'o')
        
-    tslosh = t_sloshing[0]
+    tslosh = min(t_sloshing)
     
     #print("Crest_height", Crest_height)
     #print("Crest_xcoords", len(Crest_xcoords))
     #print("tslosh", tslosh)
     #print("ts", ts)
-    print(coord)
+    #print(coord)
     
     return(Crest_xcoords, Crest_height, ts, tslosh)
