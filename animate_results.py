@@ -56,12 +56,12 @@ class animate():
         self.text.set_text('t={0:.2f}'.format(self.times[i]))
         return self.scat, self.text
 
-    def set_figure(self, title=''):
+    def set_figure(self, title='', color_key=''):
         self.fig, self.ax = plt.subplots()
-#        self.scat = self.ax.scatter([-100, -100], [-100, -100], bs)
         self.scat = self.ax.scatter([], [], c=[],
                                     vmin=self.z_lims[0], vmax=self.z_lims[1])
         self.col = plt.colorbar(self.scat)
+        self.col.set_label(color_key)
         self.text = self.ax.text(0.75, 0.95, '', transform=self.ax.transAxes)
 
         # set axis limits
@@ -69,12 +69,12 @@ class animate():
         self.ax.set_ylim(self.ylims)
         self.ax.set(title=title, xlabel='X [m]', ylabel='Y [m]')
 
-    def animate(self):
+    def animate(self, ani_step=1):
         assert self.fig is not None, 'must run set_figure first'
         # animate
         self.ani = FuncAnimation(self.fig,
                                  self.update,
-                                 frames=range(len(self.times)),
+                                 frames=range(0, len(self.times), ani_step),
                                  interval=self.interval,
                                  blit=True,
                                  init_func=self.blank)
@@ -97,12 +97,11 @@ def load_and_set(file_name, color_key='V_x'):
 
     # run animation
     ani = animate(x, y, z, times)
+    ani.set_figure(color_key=color_key)
     return ani
 
 
 if __name__ == '__main__':
-#    ani = load_and_set('raw_data/2018-12-12-16hr-56m.csv', 'Density')
-    ani = load_and_set(domain.file.name, 'V_x')
-    ani.set_figure()
-    ani.animate()
+    ani = load_and_set('./raw_data/2018-12-13-12hr-07m.csv', 'Density')
+    ani.animate(ani_step=10)
     plt.show()
