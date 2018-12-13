@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 """
 load and aniamte code
-
 Created on Tue Dec 11 23:00:45 2018
 @author: Richard Boyne rmb115@ic.ac.uk
 """

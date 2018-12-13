@@ -244,6 +244,49 @@ class SPH_main(object):
                 p.a[1] = p.a[1] - (self.P_ref * (q_ref_top ** 4 - q_ref_top ** 2) / (r_wall_top * p.rho))
         return None
 
+    def R_artificial_pressure(self, p_i, p_j_list):
+        R_i = np.zeros((len(p_j_list)))
+        R_j = np.zeros((len(p_j_list)))
+        for j, p_j in enumerate(p_j_list):
+            if p_i.P < 0:
+                R_i[j] = 0.2 * p_i.P/(p_i.rho**2)
+            else:
+                R_i[j] = 0.01*( (p_i.P/(p_i.rho**2)) + (p_j.P/(p_j.rho**2)))
+
+            if p_j.P < 0:
+                R_j[j] = 0.2 * p_j.P/(p_j.rho**2)
+            else:
+                R_j[j] = 0.01*( (p_j.P/(p_j.rho**2)) + (p_i.P/(p_i.rho**2)))
+
+        R = R_i + R_j
+        return R
+
+
+    def dW_artificial_pressure(self, p_i, p_j_list):
+        """
+        :param p_i: (object) position of particle where calculations are being performed
+        :param p_j_list: (list of objects) position of particles influencing particle i
+        :return: (np array) derivative of smoothing factor for particle i being affected by particles j
+        """
+        xi = p_i.x
+        xj = np.array([p.x for p in p_j_list])
+        r = xi - xj
+        j_list = np.sqrt(np.sum(r ** 2, axis=1)) / self.h
+        assert ((j_list >= 0).all()), "q must be a positive value"
+
+        w_fac1 = 40 / (7 * np.pi * self.h ** 3)
+        w_fac2 = -30/ (7 * np.pi * self.h ** 3)
+        for i, q in enumerate(j_list):
+            if 0 <= q < 1:
+                j_list[i] = w_fac1 * (-3 * q + (9/4) * q) * (1 - (3/2) * q**2 + (3/4) * q**3)**3
+            elif 1 <= q <= 2:
+                j_list[i] = w_fac2 * (2 - q)**3
+            else:
+                j_list[i] = 0
+        return np.array(j_list)
+
+
+
     def timestepping(self, tf):
         """Timesteps the physical problem with a set dt until user-specified time is reached"""
         dt = 0.1 * self.h / self.c0
@@ -265,6 +308,8 @@ class SPH_main(object):
                 if p_i.adj != []:
                     # calculate smoothing contribution from all neighbouring particles
                     dW_i = self.dW(p_i, p_i.adj)
+                    f = self.dW_artificial_pressure(p_i, p_i.adj)
+                    R = self.R_artificial_pressure(p_i, p_i.adj)
 
                     # calculate acceleration and rate of change of density, find maximum relative velocity
                     # amongst all particles and their neighbours and the maximum acceleration amongst particles
@@ -280,6 +325,7 @@ class SPH_main(object):
                                          p_j.P / p_j.rho ** 2) * dW_i[j] * e_ij)
                         p_i.a = p_i.a + (self.mu * p_j.m *(1 / p_i.rho**2 +
                                          1 / p_j.rho**2) * dW_i[j] * v_ij / r_mod)
+                        p_i.a = p_i.a + R[j]*f[j]
 
                         self.LJ_boundary_force(p_i)
 
@@ -431,13 +477,13 @@ if __name__ == '__main__':
             return 0
 
     # set up and run
-    domain = SPH_main(x_min=[0, 0], x_max=[10, 30], dx=1)
+    domain = SPH_main(x_min=[0, 0], x_max=[10, 10], dx=1)
     domain.determine_values()
     domain.initialise_grid(f)
     domain.allocate_to_grid()
     domain.set_up_save()
 
-    domain.timestepping(tf=0.5)
+    domain.timestepping(tf=5)
 
     # animate
     ani = load_and_set(domain.file.name, 'Density')
