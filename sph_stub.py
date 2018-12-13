@@ -6,6 +6,7 @@ import os
 import sys
 from datetime import datetime
 import pickle as pi
+import warnings
 
 
 class SPH_main(object):
@@ -99,7 +100,7 @@ class SPH_main(object):
                 self.place_point(x, tmp_max[1], bound=1)
 
             # left and right (removing corners)
-            tmp = np.arange(tmp_min[0], tmp_max[0] + self.lil_bit, self.dx)
+            tmp = np.arange(tmp_min[1], tmp_max[1] + self.lil_bit, self.dx)
             for i, y in enumerate(tmp):
                 if i != 0 and i != len(tmp)-1:
                     self.place_point(tmp_min[0], y, bound=1)
@@ -172,12 +173,11 @@ class SPH_main(object):
         j_list = np.sqrt(np.sum(r ** 2, axis=1)) / self.h
         assert ((j_list >= 0).all()), "q must be a positive value"
 
-        w_fac = 10 / (7 * np.pi * self.h ** 2)
         for i, q in enumerate(j_list):
             if 0 <= q < 1:
-                j_list[i] = w_fac * (1 - 1.5 * q ** 2 + 0.75 * q ** 3)
+                j_list[i] = self.w_fac1 * (1 - 1.5 * q ** 2 + 0.75 * q ** 3)
             elif 1 <= q <= 2:
-                j_list[i] = w_fac * (0.25 * (2 - q) ** 3)
+                j_list[i] = self.w_fac1 * (0.25 * (2 - q) ** 3)
             else:
                 j_list[i] = 0
         return np.array(j_list)
@@ -194,12 +194,11 @@ class SPH_main(object):
         j_list = np.sqrt(np.sum(r ** 2, axis=1)) / self.h
         assert ((j_list >= 0).all()), "q must be a positive value"
 
-        w_fac = 10 / (7 * np.pi * self.h ** 3)
         for i, q in enumerate(j_list):
             if 0 <= q < 1:
-                j_list[i] = w_fac * (-3 * q + (9 / 4) * q ** 2)
+                j_list[i] = self.w_fac2 * (-3 * q + (9 / 4) * q ** 2)
             elif 1 <= q <= 2:
-                j_list[i] = w_fac * (-(3 / 4) * (2 - q) ** 2)
+                j_list[i] = self.w_fac2 * (-(3 / 4) * (2 - q) ** 2)
             else:
                 j_list[i] = 0
         return np.array(j_list)
@@ -291,10 +290,13 @@ class SPH_main(object):
                     rho_condition = np.sqrt((p_i.rho/self.rho0)**(self.gamma-1))
                     rho_max_condition = np.amax((rho_max_condition, rho_condition))
 
+
                 elif p_i.adj == []:
                     # provisionary solution to dealing with leaks: if no neighbours are found,
                     # delete particle from particles_list
+                    warnings.warn("Particle %g has leaked"%(p_i.id))
                     self.particle_list.remove(p_i)
+
 
             # Updating the time step
             if count > 1:
@@ -430,12 +432,12 @@ if __name__ == '__main__':
         else:
             return 0
 
-    domain = SPH_main(x_min=[0, 0], x_max=[20, 20], dx=1)
+    domain = SPH_main(x_min=[0, 0], x_max=[20, 10], dx=0.2)
     domain.determine_values()
     domain.initialise_grid(f)
     domain.allocate_to_grid()
     domain.set_up_save()
-    domain.timestepping(tf=10)
+    domain.timestepping(tf=30)
     domain.plot_current_state()
 
 #    plt.show()
