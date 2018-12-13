@@ -1,5 +1,4 @@
 from itertools import count
-
 import numpy as np
 import matplotlib.pyplot as plt
 import os
@@ -297,7 +296,7 @@ class SPH_main(object):
                     rho_max_condition = np.amax((rho_max_condition, rho_condition))
 
 
-                elif p_i.adj == [] and ((p_i.x < self.min_x).any() or (p_i.x > self.max_x).any()):
+                elif ((p_i.x < self.min_x).any() or (p_i.x > self.max_x).any()):
                     # provisionary solution to dealing with leaks: if no neighbours are found,
                     # delete particle from particles_list
                     warnings.warn("Particle %g has leaked"%(p_i.id))
@@ -429,14 +428,12 @@ class SPH_particle(object):
                                  (2.0 * self.main_data.h), int)
 
 
-def sph_simulation(x_min, x_max, t_final, dx, func, path_name='./',
+def sph_simulation(x_min, x_max, t_final, dx, func, path_name='./', ani=True,
                    **kwargs):
     # validate kwargs
-    for key in kwargs:
-        print(key)
     sim_args = ['h_fac', 'mu', 'rho0', 'c0', 'gamma', 'interval_smooth',
                 'interval_save', 'CFL', 'g']
-    other_args = ['name', 'ani_col', 'ani_step']
+    other_args = ['file_name', 'ani_step', 'ani_key']
     for key in kwargs:
         if key not in sim_args + other_args:
             raise KeyError('Unrecognised key word argument')
@@ -449,19 +446,28 @@ def sph_simulation(x_min, x_max, t_final, dx, func, path_name='./',
     system.determine_values()
     system.initialise_grid(func)
     system.allocate_to_grid()
-    system.set_up_save(path=path_name)
+    if "file_name" in kwargs:
+        system.set_up_save(name=kwargs['file_name'], path=path_name)
+    else:
+        system.set_up_save(path=path_name)
 
     # solve the system
     system.timestepping(tf=t_final)
 
     # animate result
-    ani = load_and_set(system.file.name, 'Density')
-    ani.set_figure()
-    if 'ani_step' in kwargs:
-        ani.animate(ani_step = kwargs['ani_step'])
-    else:
-        ani.animate()
-    plt.show()
+    if ani:
+        if "ani_key" in kwargs:
+            ani = load_and_set(system.file.name, ani_key = kwargs['ani_key'])
+            ani.set_figure(color_key=kwargs['ani_key'])
+        else:
+            ani = load_and_set(system.file.name, 'Density')
+            ani.set_figure(color_key='Density')
+
+        if 'ani_step' in kwargs:
+            ani.animate(ani_step=kwargs['ani_step'])
+        else:
+            ani.animate()
+        plt.show()
 
     return system
 
@@ -474,4 +480,5 @@ if __name__ == '__main__' and 1:
         else:
             return 0
 
-    sph_simulation(x_min=[0, 0], x_max=[20, 10], t_final=10, dx=1, func=f, path_name='./raw_data/', ani_step=10)
+    sph_simulation(x_min=[0, 0], x_max=[20, 10], t_final=0.2, dx=1, func=f, path_name='./raw_data/',
+                   ani_step=10, ani_key="Pressure", file_name="hi")
