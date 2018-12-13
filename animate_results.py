@@ -1,10 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-load and aniamte code
-Created on Tue Dec 11 23:00:45 2018
-@author: Richard Boyne rmb115@ic.ac.uk
-"""
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -102,7 +95,6 @@ def load_and_set(file_name, color_key='V_x'):
 
 
 if __name__ == '__main__':
-
     ani = load_and_set('./raw_data/2018-12-13-12hr-07m.csv', 'Density')
     ani.animate(ani_step=10)
 
