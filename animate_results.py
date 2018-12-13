@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 """
 load and aniamte code
-
 Created on Tue Dec 11 23:00:45 2018
 @author: Richard Boyne rmb115@ic.ac.uk
 """
@@ -106,4 +105,4 @@ if __name__ == '__main__':
     ani = load_and_set(domain.file.name, 'V_x')
     ani.set_figure()
     ani.animate()
-#    plt.show()
+    plt.show()
