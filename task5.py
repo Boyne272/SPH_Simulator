@@ -1,4 +1,10 @@
 # -*- coding: utf-8 -*-
+"""
+Created on Wed Dec 12 17:10:21 2018
+
+@author: karad
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -25,7 +31,7 @@ def Read(file_name):
     y = []
     t = []
     for i in range(len(boundary)):
-        if boundary[i] == True:
+        if boundary[i] == False:
             x.append(xx[i]);
             y.append(yy[i]);
             t.append(tt[i])
@@ -34,14 +40,6 @@ def Read(file_name):
 
     return  x, y, t
 
-dt = np.diff(t)
-
-x=np.array(x)
-y=np.array(y)
-t=np.array(t)
-
-# time values without repetition
-ts= list(set(t))
 
 
 def t_index(t):
@@ -83,20 +81,19 @@ def MVAVARAGE(List, N):
         cumsum.append(cumsum[i-1] + x)
         if i>=N:
             moving_ave = (cumsum[i] - cumsum[i-N])/N
-        #else:
-         #   moving_ave = 0
-            moving_aves.append(moving_ave)
+        else:
+            moving_ave = 0
+        moving_aves.append(moving_ave)
     return(moving_aves)
 
 
-def peak(file_name, x, y, t, mv_avN, wallpos):
+def peak(file_name, mv_avN, wallpos):
     """
     Inputs: 
         ----------------------------------
         x - x_coordinates array (exclude walls)
         y - y_coordinates array (exclude walls)
         t - t_coordinates array (exclude walls)
-        tindex - when time changes value (array)
         mv_avN - N move avarage (float or int)
         wallpos - x-coordinates of boundary (float or int)
         ---------------------------------
@@ -106,19 +103,26 @@ def peak(file_name, x, y, t, mv_avN, wallpos):
         ---------------------------------
     """
     x, y, t =  Read(file_name)
+
+    
+    x=np.array(x)
+    y=np.array(y)
+    t=np.array(t)
+
+    # time values without repetition
+    ts_unsorted= list(set(t))
+    ts = np.sort(ts_unsorted)
     
     # tindex = start index of each time
     tindex = t_index(t)
-    
-    # time values without repetition
-    ts= list(set(t))
+    #print(tindex)
 
     Crest_height=[]
     Crest_xcoords=[]
     t_sloshing=[]
     for i in range(len(ts)):
         
-        # Slice x-array to get a timeframe.
+        # Slice x-array, y-array to get a timeframe.
         gridpointsX = x[tindex[i] : tindex[i+1]]
         ypoints = y[tindex[i] : tindex[i+1]]
         gridpointsY = MVAVARAGE(ypoints, mv_avN)
@@ -130,16 +134,22 @@ def peak(file_name, x, y, t, mv_avN, wallpos):
         Crest_xcoords.append(coord)
         
         
-        if coord >= 0.99*wallpos:
+        if coord >= wallpos:
             t_sloshing.append(ts[i])
-        
+            
+        #print(tindex[i])
+        #print(gridpointsX)
+        #print(gridpointsY)
+        #print(t_sloshing)
+        #print(max(gridpointsY), Peak_Indx, coord)
     #plt.plot(ts, Crest_xcoords, 'o')
        
-    tslosh = t_sloshing[0]
+    tslosh = min(t_sloshing)
     
     #print("Crest_height", Crest_height)
     #print("Crest_xcoords", len(Crest_xcoords))
     #print("tslosh", tslosh)
     #print("ts", ts)
+    #print(coord)
     
     return(Crest_xcoords, Crest_height, ts, tslosh)
