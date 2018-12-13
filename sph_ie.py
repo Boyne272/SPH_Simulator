@@ -263,6 +263,7 @@ class SPH_main(object):
                 p.a[1] = p.a[1] - (self.P_ref * (q_ref_top ** 4 - q_ref_top ** 2) / (r_wall_top * p.rho))
         return None
 
+
     def timestepping(self, tf):
         """Timesteps the physical problem with a set dt until user-specified time is reached"""
         dt = 0.1 * self.h / self.c0
