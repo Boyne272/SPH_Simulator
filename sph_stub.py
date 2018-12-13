@@ -65,6 +65,7 @@ class SPH_main(object):
         """
 
         assert self.h is not None, 'must run determine values first'
+        assert callable(func), 'func must be a function'
 
         # set internal points
         for x in np.arange(self.min_x[0], self.max_x[0] + self.lil_bit,
@@ -423,7 +424,40 @@ class SPH_particle(object):
                                  (2.0 * self.main_data.h), int)
 
 
-if __name__ == '__main__':
+def sph_simulation(x_min, x_max, t_final, dx, func, path_name='./',
+                   **kwargs):
+
+    # validate kwargs
+    sim_args = ['h_fac', 'mu', 'rho0', 'c0', 'gamma', 'interval_smooth',
+                'interval_save', 'CFL', 'g']
+    other_args = ['name', 'ani_col']
+    for key in kwargs:
+        if key not in sim_args + other_args:
+            raise KeyError('Unrecognised key word argument')
+
+    # set the system
+    system = SPH_main(x_min, x_max, dx=dx)
+    for key in kwargs:
+        if key in sim_args:
+            exec('system.' + key + '= kwargs[key]')
+    system.determine_values()
+    system.initialise_grid(func)
+    system.allocate_to_grid()
+    system.set_up_save(path=path_name)
+
+    # solve the system
+    system.timestepping(tf=t_final)
+
+    # animate result
+    ani = load_and_set(domain.file.name, 'Density')
+    ani.set_figure()
+    ani.animate()
+    plt.show()
+
+    return system
+
+
+if __name__ == '__main__' and 0:
 
     def f(x, y):
         if 0 <= y <= 2 or (0 <= x <= 3 and 0 <= y <= 5):
