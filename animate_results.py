@@ -1,4 +1,5 @@
 
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -53,7 +54,7 @@ class animate():
         self.fig, self.ax = plt.subplots()
         self.scat = self.ax.scatter([], [], c=[],
                                     vmin=self.z_lims[0], vmax=self.z_lims[1])
-        self.col = plt.colorbar(self.scat)
+        self.col = self.fig.colorbar(self.scat)
         self.col.set_label(color_key)
         self.text = self.ax.text(0.75, 0.95, '', transform=self.ax.transAxes)
 
@@ -67,7 +68,6 @@ class animate():
         # animate
         self.ani = FuncAnimation(self.fig,
                                  self.update,frames=range(0, len(self.times), ani_step),
-
                                  interval=self.interval,
                                  blit=True,
                                  init_func=self.blank)
@@ -75,7 +75,7 @@ class animate():
             self.ani.save(self.save)
 
 
-def load_and_set(file_name, color_key='V_x'):
+def load_and_set(file_name, ani_key='V_x'):
     # load data
     data = pd.read_csv(file_name, skiprows=2, index_col=False)
     data = data.set_index('Time')
@@ -86,16 +86,17 @@ def load_and_set(file_name, color_key='V_x'):
     for t in times:
         x.append(data.loc[t]['R_x'])
         y.append(data.loc[t]['R_y'])
-        z.append(data.loc[t][color_key])
+        z.append(data.loc[t][ani_key])
 
     # run animation
     ani = animate(x, y, z, times)
-    ani.set_figure(color_key=color_key)
+    ani.set_figure(color_key=ani_key)
     return ani
 
 
 if __name__ == '__main__':
-    ani = load_and_set('./raw_data/2018-12-13-12hr-07m.csv', 'Density')
+
+    ani = load_and_set('raw_data/2018-12-13-11hr-08m.csv', 'Density')
     ani.animate(ani_step=10)
 
     plt.show()
