@@ -102,8 +102,8 @@ def load_and_set(file_name, color_key='V_x'):
 
 if __name__ == '__main__':
 
-#    ani = load_and_set('raw_data/2018-12-12-16hr-56m.csv', 'Density')
-    ani = load_and_set(domain.file.name, 'V_x')
+    ani = load_and_set('raw_data/2018-12-12-20hr-16m.csv', 'Density')
+    #ani = load_and_set(domain.file.name, 'V_x')
     ani.set_figure()
 
     ani.animate()

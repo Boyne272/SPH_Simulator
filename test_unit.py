@@ -2,6 +2,7 @@ from sph_stub import SPH_main, SPH_particle
 import numpy as np
 import pickle as pi
 import os
+import task7
 
 
 def test_W_dW():
@@ -73,3 +74,40 @@ def test_setup_save():
             assert str(line)[2] == '#'  # check first lines two lead with #
     # check 3 + number particles saved
 #    assert i == 2 
+
+
+
+def test_R_dW_artificial_pressure():
+    x_min = [0,0]
+    x_max = [10, 20]
+    dx = 1
+    def f(x, y):
+        if 0 <= y <= 2 or (0 <= x <= 3 and 0 <= y <= 5):
+            return 1
+        else:
+            return 0
+    system = task7.SPH_main(x_min, x_max, dx=dx)
+    system.determine_values()
+    system.initialise_grid(f)
+    system.allocate_to_grid()
+
+    p_i = SPH_particle(x=np.array([5, 6]))
+    p_i.P = 5000
+    p_i.rho = 1200
+
+    p_j1 = SPH_particle(x=np.array([5.02, 5.92]))
+    p_j1.P = 2000
+    p_j1.rho = 1205
+
+    p_j2 = SPH_particle(x=np.array([5.04, 5.97]))
+    p_j2.P = 2000
+    p_j2.rho = 1205
+
+    p_j3 = SPH_particle(x=np.array([5.08, 6.04]))
+    p_j3.P = 2000
+    p_j3.rho = 1205
+
+    pj_list = [p_j1, p_j2, p_j3]
+
+    assert (np.isclose(system.R_artificial_pressure(p_i, pj_list), [0.00009699, 0.00009699, 0.00009699]).all())
+    assert (np.isclose(system.dW_artificial_pressure(p_i, pj_list), [-0.0387006, -0.0237263, -0.04184862]).all())
