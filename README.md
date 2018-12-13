@@ -45,7 +45,7 @@ def f(x, y):
         else:
             return 0
 
-sphfe.sph_simulation(x_min=[0, 0], x_max=[20, 10], t_final=10, dx=0.2, func=f, path_name='./examples/',
+sphfe.sph_simulation(x_min=[0, 0], x_max=[20, 10], t_final=1, dx=0.2, func=f, path_name='./examples/',
                      ani_step=10, ani_key="Pressure", file_name="example33")
 ```
 The function *f* will produce the following initial condition:
@@ -54,9 +54,11 @@ The function *f* will produce the following initial condition:
 
 and the simulation will produce a .csv file at the specified path name and file name containing information about each particle at each timestep in the following format:
 
-![csv_example.png](./csv_example.png)
+![csv_example.png](./csv_example.PNG)
 
 Unless the optional parameter *ani* is set to False, the simulator function will also produce an animation of the dynamic system over the timeframe. The parameter *ani_key* will let you choose between what parameters should be plotted in the colorplot besides position of the particles. Choices are: Pressure, Density, V_y and V_x. Parameter *ani_step* allows for quicker plotting by skipping some of the timestepping frames.
+
+![097_high_res.png](./097_high_res.PNG)
 
 ### Example 2
 If a file with the format above already exists, a simulation can be animated simply by setting up and calling the animation function
