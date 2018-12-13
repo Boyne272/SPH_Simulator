@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 # read files
+
+
 def Read(file_name):
     
     # read from files
@@ -134,7 +136,7 @@ def peak(file_name, mv_avN, wallpos):
         Crest_xcoords.append(coord)
         
         
-        if coord >= wallpos:
+        if coord >= 0.85*wallpos:
             t_sloshing.append(ts[i])
             
         #print(tindex[i])
@@ -153,3 +155,11 @@ def peak(file_name, mv_avN, wallpos):
     #print(coord)
     
     return(Crest_xcoords, Crest_height, ts, tslosh)
+
+
+Cx, Cy, ts, tslosh = peak('./raw_data/2018-12-12-23hr-39m.csv', 1, 20)
+
+np.savetxt("Cx_File.csv", Cx, delimiter=",")
+np.savetxt("Cy_File.csv", Cy, delimiter=",")
+np.savetxt("ts_File.csv", ts, delimiter=",")
+print(tslosh)
