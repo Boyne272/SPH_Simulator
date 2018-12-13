@@ -91,7 +91,7 @@ def test_setup_save():
     # check pickle saves correctly
     for key in load_dict.keys():
         if key != 'file':
-            assert np.all(load_dict[key] == vars(domain)[key])
+            assert np.all(load_dict[key] == vars(domain1)[key])
 
     for i, line in enumerate(load_csv):
         if i < 2:
@@ -132,8 +132,8 @@ def test_R_dW_artificial_pressure():
 
     pj_list = [p_j1, p_j2, p_j3]
 
-    assert (np.isclose(system.R_artificial_pressure(p_i, pj_list), [0.00009699, 0.00009699, 0.00009699]).all())
-    assert (np.isclose(system.dW_artificial_pressure(p_i, pj_list), [-0.03870062, -0.02372638, -0.04184862]).all())
+    assert (np.isclose(system.R_artificial_pressure(p_i, pj_list, 1), [0.00009699, 0.00009699, 0.00009699]).all())
+    assert (np.isclose(system.dW_artificial_pressure(p_i, pj_list, 1), [-0.03870062, -0.02372638, -0.04184862]).all())
 
 
 # def test_timestepping():

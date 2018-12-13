@@ -263,52 +263,6 @@ class SPH_main(object):
                 p.a[1] = p.a[1] - (self.P_ref * (q_ref_top ** 4 - q_ref_top ** 2) / (r_wall_top * p.rho))
         return None
 
-    def differentials(self):
-        for i, p_i in enumerate(self.particle_list):
-            # create list of neighbours for particle i
-            self.neighbour_iterate(p_i)
-
-            p_i.a = self.g
-            p_i.D = 0
-
-            if p_i.adj != []:
-                # calculate smoothing contribution from all neighbouring particles
-                dW_i = self.dW(p_i, p_i.adj, 1)
-
-                # calculate acceleration and rate of change of density, find maximum relative velocity
-                # amongst all particles and their neighbours and the maximum acceleration amongst particles
-
-                for j, p_j in enumerate(p_i.adj.copy()):
-                    r_vec = p_i.x - p_j.x
-                    r_mod = np.sqrt(np.sum(r_vec ** 2))
-                    e_ij = r_vec / r_mod
-                    v_ij = p_i.v - p_j.v
-
-                    p_i.a = p_i.a - (p_j.m * (p_i.P / p_i.rho ** 2 +
-                                              p_j.P / p_j.rho ** 2) * dW_i[j] * e_ij)
-                    p_i.a = p_i.a + (self.mu * p_j.m * (1 / p_i.rho ** 2 +
-                                                        1 / p_j.rho ** 2) * dW_i[j] * v_ij / r_mod)
-
-                    p_i.D = p_i.D + p_j.m * dW_i[j] * (v_ij[0] * e_ij[0] + v_ij[1] * e_ij[1])
-
-                    v_ij_max = np.amax((np.linalg.norm(v_ij), v_ij_max))
-
-                # add acceleration due to repulsive boundaries
-                self.LJ_boundary_force(p_i)
-
-                # Max values to calculate the time step
-                a_max = np.amax((np.linalg.norm(p_i.a), a_max))
-                rho_condition = np.sqrt((p_i.rho / self.rho0) ** (self.gamma - 1))
-                rho_max_condition = np.amax((rho_max_condition, rho_condition))
-
-            elif ((p_i.x < self.min_x).any() or (p_i.x > self.max_x).any()):
-                # remove leaked particles
-                warnings.warn("Particle %g has leaked" % (p_i.id))
-                self.particle_list.remove(p_i)
-
-        return p_i, v_ij_max, a_max, rho_max_condition
-
-
 
     def timestepping(self, tf):
         """Timesteps the physical problem with a set dt until user-specified time is reached"""
