@@ -198,8 +198,6 @@ class SPH_main(object):
                     dist = np.sqrt(np.sum(dn ** 2))
                     if dist < 2.0 * self.h:
                         part.adj.append(other_part)
-                elif (other_part.id == part.id):
-                    print('oh fuck')
 
     def plot_current_state(self):
         """
