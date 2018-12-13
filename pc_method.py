@@ -354,7 +354,7 @@ class SPH_main(object):
                     p_i.a = self.g
                     p_i.D = 0
                     for j, p_j in enumerate(p_i.adj.copy()):
-                        r_vec = p_i.x - p_j.x
+                        r_vec = p_i.x_temp - p_j.x_temp
                         r_mod = np.sqrt(np.sum(r_vec ** 2))
                         e_ij = r_vec / r_mod
                         v_ij = p_i.v - p_j.v
@@ -375,7 +375,7 @@ class SPH_main(object):
                     self.particle_list.remove(p_i)
 
 
-            """PART 2 STEP 1"""
+            """PART 2 STEP 2"""
             # updating each particles values
             for i, p_i in enumerate(self.particle_list.copy()):
                 # if particle is not at the boundary
@@ -522,12 +522,12 @@ if __name__ == '__main__':
             return 0
 
 
-    domain = SPH_main(x_min=[0, 0], x_max=[20, 10], dx=0.1)
+    domain = SPH_main(x_min=[0, 0], x_max=[20, 10], dx=0.2)
     domain.determine_values()
     domain.initialise_grid(f)
     domain.allocate_to_grid()
     domain.set_up_save()
-    domain.timestepping(tf=10)
+    domain.timestepping(tf=15)
 
     # animate
     ani = load_and_set(domain.file.name, 'Density')
