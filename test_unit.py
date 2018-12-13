@@ -122,11 +122,11 @@ def test_R_dW_artificial_pressure():
     p_j1.P = 2000
     p_j1.rho = 1205
 
-    p_j2 = SPH_particle(x=np.array([5.04, 5.97]))
+    p_j2 = ap.SPH_particle(x=np.array([5.04, 5.97]))
     p_j2.P = 2000
     p_j2.rho = 1205
 
-    p_j3 = SPH_particle(x=np.array([5.08, 6.04]))
+    p_j3 = ap.SPH_particle(x=np.array([5.08, 6.04]))
     p_j3.P = 2000
     p_j3.rho = 1205
 
@@ -134,3 +134,16 @@ def test_R_dW_artificial_pressure():
 
     assert (np.isclose(system.R_artificial_pressure(p_i, pj_list), [0.00009699, 0.00009699, 0.00009699]).all())
     assert (np.isclose(system.dW_artificial_pressure(p_i, pj_list), [-0.03870062, -0.02372638, -0.04184862]).all())
+
+
+def test_timestepping():
+    domain1 = fe.SPH_main()
+    domain1.determine_values()
+    domain2 = ie.SPH_main()
+    domain2.determine_values()
+    domain3 = ap.SPH_main()
+    domain3.determine_values()
+
+    domain1.timestepping(1)
+
+    assert

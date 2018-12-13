@@ -639,5 +639,5 @@ if __name__ == '__main__' and 1:
         else:
             return 0
 
-    sph_simulation(x_min=[0, 0], x_max=[20, 10], t_final=10, dx=0.2, func=f, path_name='./examples/',
+    sph_simulation(x_min=[0, 0], x_max=[20, 10], t_final=30, dx=0.5, func=f, path_name='./raw_data/',
                    ani_step=10, ani_key="Pressure", file_name="example3")
