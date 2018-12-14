@@ -914,3 +914,4 @@ if __name__ == '__main__' and 1:
     sph_simulation(x_min=[0, 0], x_max=[20, 10], t_final=0.5, dx=1, func=f,
                    path_name='./raw_data/', ani_step=1, ani_key="Pressure",
                    file_name="final_sim")
+

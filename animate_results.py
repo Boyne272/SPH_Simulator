@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -76,8 +75,7 @@ class animate():
         assert self.fig is not None, 'must run set_figure first'
         # animate
         self.ani = FuncAnimation(self.fig,
-                                 self.update,
-                                 frames=range(0, len(self.times), ani_step),
+                                 self.update,frames=range(0, len(self.times), ani_step),
                                  interval=self.interval,
                                  blit=True,
                                  init_func=self.blank)
@@ -119,6 +117,13 @@ def load_and_set(file_name, ani_key='V_x'):
 
 
 if __name__ == '__main__':
+<<<<<<< HEAD
     ani = load_and_set('./raw_data/2018-12-12-18hr-13m.csv', 'Density')
     ani.animate(ani_step=10)
+=======
+
+    ani = load_and_set('./raw_data/example3.csv', 'Density')
+    # ani = load_and_set(domain.file.name, 'Density')
+    ani.animate(ani_step=20)
+>>>>>>> e7d00511bc5982a10f448bbb228b6f259d909812
     plt.show()

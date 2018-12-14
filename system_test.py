@@ -1,51 +1,45 @@
-import numpy as np
-import sph_stub as sph
-
-if __name__ == '__main__':
-    """Create a single object of the main SPH type"""
-    domain = sph.SPH_main()
-
-    """Calls the function that sets the simulation parameters"""
-    domain.set_values()
-    """Initialises the search grid"""
-    domain.initialise_grid()
-
-    """
-    Places particles in a grid over the entire domain - In your code you
-    will need to place the fluid particles in only the appropriate locations
-    """
-    domain.place_points(domain.min_x, domain.max_x)
-
-    """This is only for demonstration only - In your code these functions
-    will need to be inside the simulation loop"""
-    """This function needs to be called at each time step
-    (or twice a time step if a second order time-stepping scheme is used)"""
-    domain.allocate_to_grid()
-    """This example is only finding the neighbours for a single partle
-    - this will need to be inside the simulation loop and will need to be
-    called for every particle"""
-    domain.neighbour_iterate(domain.particle_list[100])
-
-    domain.timestepping(tf=2e-4)
-
-
-def test_speedofsound():
-    # save_file = open('raw_data/2018-12-12-14hr-15m.csv', 'r')
-    #
-    # for line in save_file:
-    #     if line[0] == "#":
-    #         pass
-    #     else:
-    #         data = line.split()
-
-    x = 1
-    y = 1
-    assert x == y
-
-def test_density():
-    file_path = 3
-
-    # np.load(file_path, 'r')
-
-    y = 3
-    assert file_path == y
+# import numpy as np
+# import sph_stub as sph
+# import pandas as pd
+#
+# x_min = [0, 0]
+# x_max = [20, 10]
+# t_final = 2
+# dx = 0.8
+#
+#
+# def f(x, y):
+#     if 0 <= y <= 2 or (0 <= x <= 3 and 0 <= y <= 5):
+#         return 1
+#     else:
+#         return 0
+#
+#
+# # sph.sph_simulation(x_min, x_max, t_final, dx, f, path_name= "./raw_data")
+# # self.file.write("Time,ID,R_x,R_y,V_x,V_y,a_x,a_y,Pressure," +
+# #                         "Density,Boundary\n")
+#
+# # file_name = 'raw_data/2018-12-12-20hr-16m.csv'
+# def test_speedofsound():
+#
+#     data = pd.read_csv(file_name, skiprows=2, index_col=False)
+#     data = data.set_index('Time')
+#
+#     v = np.sqrt(data['V_x']**2+data['V_y']**2)
+#
+#     c0 = 20
+#     assert np.all(v < c0)
+#
+#
+# def test_density():
+#     data = pd.read_csv(file_name, skiprows=2, index_col=False)
+#     #data = data.set_index('Time')
+#
+#     rho = data['Density']
+#
+#     bound = data['Boundary']
+#     #data
+#
+#     # check that density is positive
+#     assert np.all(rho > 0)
+#     #check that density changes
