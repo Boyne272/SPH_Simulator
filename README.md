@@ -26,6 +26,7 @@ To be able to run this software, the following packages and versions are require
 - pandas >= 0.23.4
 
 ## Documentation
+*For full documentation see documentation_html*
 ```python  
 def sph_simulation(x_min, x_max, t_final, dx, func, path_name='./', ani=True,
                    **kwargs):
@@ -147,15 +148,15 @@ sphfe.sph_simulation(x_min=[0, 0], x_max=[20, 10], t_final=1, dx=0.2, func=f, pa
 ```
 The function *f* will produce the following initial condition:
 
-![initial_state_high_res.png](./initial_state_high_res.png)
+![initial_state_high_res.png](./figs/initial_state_high_res.png)
 
 and the simulation will produce a .csv file at the specified path name and file name containing information about each particle at each timestep in the following format:
 
-![csv_example.png](./csv_example.PNG)
+![csv_example.png](./figs/csv_example.PNG)
 
 Unless the optional parameter *ani* is set to False, the simulator function will also produce an animation of the dynamic system over the timeframe. The parameter *ani_key* will let you choose between what parameters should be plotted in the colorplot besides position of the particles. Choices are: Pressure, Density, V_y and V_x. Parameter *ani_step* allows for quicker plotting by skipping some of the timestepping frames.
 
-![097_high_res.png](./097_high_res.PNG)
+![097_high_res.png](./figs/097_high_res.PNG)
 
 ### Example 2
 If a file with the format above already exists, a simulation can be animated simply by setting up and calling the animation function
@@ -165,7 +166,4 @@ ani.sphfe.animate(ani_step=10)
 plt.show()
 
 ```
-    
-    
-              
-```
+ See *figs* and *examples* folder for examples of animations.
