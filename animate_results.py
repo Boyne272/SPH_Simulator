@@ -103,19 +103,15 @@ def load_and_set(file_name, ani_key='V_x'):
         From the instance of animate
     """
     # load data
-    print("try to load data...")
-    data = pd.read_csv(file_name, skiprows=2, index_col=False, low_memory=False, nrows=5000)
+    data = pd.read_csv(file_name, skiprows=2, index_col=False)
     data = data.set_index('Time')
-    print("i've read the file")
     # format data
     times = np.unique(data.index)
-    print("variable times is created")
     x, y, z = [], [], []
     for t in times:
         x.append(data.loc[t]['R_x'])
         y.append(data.loc[t]['R_y'])
         z.append(data.loc[t][ani_key])
-    print("i've looped through the file")
     # run animation
     ani = animate(x, y, z, times)
     ani.set_figure(color_key=ani_key)
@@ -123,7 +119,6 @@ def load_and_set(file_name, ani_key='V_x'):
 
 
 if __name__ == '__main__':
-    ani = load_and_set('./raw_data/final_sim.csv', 'Density')
-    # ani = load_and_set(domain.file.name, 'Density')
-    ani.animate(ani_step=100)
+    ani = load_and_set('./raw_data/2018-12-12-18hr-13m.csv', 'Density')
+    ani.animate(ani_step=10)
     plt.show()
