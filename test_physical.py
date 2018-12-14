@@ -46,7 +46,7 @@ def test_density():
     times = np.unique(data.index)
 
     dens = data['Density']
-    rho0 = dens.loc[0].mean()
+    rho0 = dens.loc[times[0]].mean()
 
     # find the data lims
     N = len(times)-1  # ignore the first time

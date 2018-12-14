@@ -10,7 +10,121 @@ from animate_results import load_and_set, animate
 
 
 class SPH_main(object):
-    """Primary SPH object"""
+    """
+    A class for Smoothed Particle Hydrodynamics (SPH), a meshless method
+    used for solving the Navier-Stokes equation to simulate a wave
+    generation problem.
+
+    ....
+
+    Attributes
+    ----------
+
+    h : float -- determined attribute
+        bin half size (meters). [Deafult value = 1.3]
+    h_fac : float -- set attribute
+        bin half size constant (unitless).
+    dx : float -- set attribute
+        particle spacing (meters).
+    mu : float -- set attribute
+        viscosity (Pa s) [Deafult value = 0.001]
+    rho0 : integer -- set attribute
+        initial particle density (kg/m^3). [Deafult value = 1000]
+    c0 : integer -- set attribute
+        fit-for-purpose speed of sound in water (m/s). [Deafult value = 20]
+    t_curr : float -- set attribute
+        current time of the system (s).
+    gamma : constant -- set attribute
+        stiffness value (unitless). [Deafult value = 7]
+    interval_smooth : integer -- set attribute
+        number of timesteps to which smooth rho (unitless). [Deafult value = 15]
+    interval_save : integer -- set attribute
+        number of timesteps at which the current states are saved (unitless).
+        [Deafult value = 15]
+    CFL : float -- set attribute
+        Scale factor for Courant–Friedrichs–Lewy condition (unitless). [Deafult value = 0.2]
+    B : float -- determined attribute
+        pressure constant (Pa).
+    g : 1D array -- set attribute
+        body force based 2D vector [gravity value (m/s^2)]. [Deafult value = [0, -9.81] ]
+    file : file -- determined attribute
+        a file of results for post processing and visulaization.
+    min_x : list
+        lower-left boundary for the domain.
+    max_x : list
+        upper-right boundaries for the domain.
+    max_list : list -- determined attribute
+        binning grid dimensions.
+    search_grid : array
+        binning grid.
+    t_curr : float -- set attribute
+        Dyanimc. Stores time at which simulation is being run. Starts at 0.
+    w_fac1 : float -- set attribute
+        A constant for the smoothing function W (m^-2).
+    w_fac2 : float -- set attribute
+        A constant for the derivative smoothing function dW (m^-3.)
+    particle_list : list -- determined attribute
+        A list of particles to be simulated.
+    search_grid : array -- determined attribute
+        An array of searched neighbouring particles.
+    lil_bit : float-- determined attribute
+        An upper limit to get np arrange working as desired.
+    P_ref : float -- determined attribute
+        Boundary reference pressure to prevent leakages (Pa).
+    d_ref : float -- determined attribute
+        Reference distance for enforcing boundary pressure (m).
+    func : list -- set attribute
+        A list containing O and 1 to distinguish fluid particles from
+        boundaries.
+    interval_smooth : int -- set attribute
+        interval of timesteps at which density smoothing function is called
+    interval_save : int -- set attribute
+        interval of timesteps at which data is appended to file
+
+
+    Methods
+    -------
+    determine_values():
+        Aids to determine initial simulation parameters.
+    initialise_grid():
+        Intializes the domain for simulation.
+    add_boundaries():
+        Adds the boundary points of at least 2h around the edges.
+    place_points(xmin, xmax):
+        Place points in a rectangle with a square spacing of specific value.
+    allocate_to_grid():
+        Allocates all the points to a grid to aid neighbours' searching.
+    neighbour_iterate(part):
+        Finds all the particles within the search range of a specific particle.
+    plot_current_state():
+        Plots the current state of the system (i.e. where every particles are)
+        in space.
+    W(p_i, p_j_list):
+        Calculates Smoothing factor for a particle being affected by
+        neighbouring particles within the specified neighbourhood.
+    dW(p_i, p_j_list):
+        Calculates the derivative Smoothing factor for a particle being
+        affected by neighbouring particles within the specified neighbourhood.
+    LJ_boundary_force(p):
+        Enforces boundary force to prevent fluid particles' leaking.
+    rho_smoothing(p_i, p_j_list):
+        determines the smoothed density of a particle interest.
+    timestepping(tf):
+        Timesteps the physical problem with a set dt until
+        user-specified time is reached.
+    set_up_save(name, path):
+        Saves the initial setup of the system and creates the csv file to
+        store ongoing results as solution runs.
+    save_state():
+        Append the current state of every particle in the system to the
+        end of the csv file.
+    R_artificial_pressure(p_i, p_j_list, step) -- sph_ap only:
+        Determines the R component of the artificial pressure.
+    dW_artificial_pressure(p_i, p_j_list, step) -- sph_ap only:
+        Calculates the derivative Smoothing factor component of the artificial
+        pressure for a particle being affected by neighbouring particles
+        within the specified neighbourhood.
+    """
 
     def __init__(self, x_min=(0.0, 0.0), x_max=(1.0, 1.0), dx=0.02):
 
@@ -63,7 +177,7 @@ class SPH_main(object):
     def initialise_grid(self, func):
         """
         Initalise simulation grid.
-        func takes array x and returns 1 for in fluid or 0 for out of fluid
+        func takes array x and returns 1 for particle in fluid or 0 for no particle
         """
 
         assert self.h is not None, 'must run determine values first'
@@ -90,7 +204,7 @@ class SPH_main(object):
 
 
     def add_boundaries(self):
-        "add the boundary points so at least 2h around the edge "
+        """ Adds the boundary points so at least 2h around the edge """
         # create the boundary points
         tmp_diff = 0
         while tmp_diff < 2.0*self.h:
@@ -116,7 +230,11 @@ class SPH_main(object):
 
 
     def place_point(self, x, y, bound=0):
-        """Place particle at point given"""
+        """Place particle at point given and assigns the particle attribute boundary
+        x: float
+            x location of particle assuming positive to the right and negative to the left
+        y: float
+            y location of particle assuming positive up and negative down"""
 
         # create particle object and assign index
         particle = SPH_particle(self, np.array([x, y]))
@@ -172,9 +290,18 @@ class SPH_main(object):
 
     def W(self, p_i, p_j_list):
         """
-        :param p_i: (object) position of particle where calculations are being performed
-        :param p_j_list: (list of objects) position of particles influencing particle i
-        :return: (np array) smoothing factor for particle i being affected by particles j
+        Computes the smoothing parameter for a particle i and all its influencing neighbours
+        Parameters
+        ----------
+        p_i: (object)
+            particle where calculations are being performed
+        p_j_list: (list of objects)
+            particles influencing particle i
+
+        Returns
+        --------
+        j_list:(np array)
+            smoothing factor for particle i being affected by particles j
         """
         xi = p_i.x
         xj = np.array([p.x for p in p_j_list])
@@ -194,10 +321,21 @@ class SPH_main(object):
 
     def dW(self, p_i, p_j_list, step):
         """
-        :param p_i: (object) position of particle where calculations are being performed
-        :param p_j_list: (list of objects) position of particles influencing particle i
-        :param step: PC step, value 1 or 2
-        :return: (np array) derivative of smoothing factor for particle i being affected by particles j
+        Computes the derivative of the smoothing parameter for a particle i and all
+        its influencing neighbours
+        Parameters
+        ----------
+        p_i: (object)
+            particle where calculations are being performed
+        p_j_list: (list of objects)
+            list of particles influencing particle i
+        step: int
+            value of 1 or 2 corresponding to the stage of the predictor corrector method
+
+        Returns
+        --------
+        j_list:(np array)
+            derivative of smoothing factor for particle i being affected by particles j
         """
         xi = 0
         xj = 0
@@ -224,6 +362,22 @@ class SPH_main(object):
 
 
     def R_artificial_pressure(self, p_i, p_j_list, step):
+        """
+        Determines the R component of the artificial pressure inserted.
+        Parameters
+        ----------
+        p_i: (object)
+            particle where calculations are being performed
+        p_j_list: (list of objects)
+            list of particles influencing particle i
+        step: int
+            value of 1 or 2 corresponding to the stage of the predictor corrector method
+
+        Returns
+        --------
+        j_list:(np array)
+            derivative of smoothing factor for particle i being affected by particles j
+        """
         R_i = np.zeros((len(p_j_list)))
         R_j = np.zeros((len(p_j_list)))
 
@@ -254,9 +408,22 @@ class SPH_main(object):
 
     def dW_artificial_pressure(self, p_i, p_j_list, step):
         """
-        :param p_i: (object) position of particle where calculations are being performed
-        :param p_j_list: (list of objects) position of particles influencing particle i
-        :return: (np array) derivative of smoothing factor for particle i being affected by particles j
+        Calculates the derivative Smoothing factor component of the artificial
+        pressure for a particle being affected by neighbouring particles
+        within the specified neighbourhood.
+        Parameters
+        ----------
+        p_i: (object)
+            particle where calculations are being performed
+        p_j_list: (list of objects)
+            list of particles influencing particle i
+        step: int
+            value of 1 or 2 corresponding to the stage of the predictor corrector method
+
+        Returns
+        --------
+        j_list:(np array)
+            derivative of smoothing factor for particle i being affected by particles j
         """
         xi = 0
         xj = 0
@@ -286,9 +453,18 @@ class SPH_main(object):
 
     def rho_smoothing(self, p_i, p_j_list):
         """
-        :param p_i: (object) position of particle where calculations are being performed
-        :param p_j_list: (list of objects) position of particles influencing particle i
-        :return: (np array) smoothed density of particle i
+        Computes the smoothed density of a particle i and
+        Parameters
+        ----------
+        p_i: (object)
+            particle where calculations are being performed
+        p_j_list: (list of objects)
+            list of particles influencing particle i
+
+        Returns
+        --------
+        rho:(float)
+            particle i smoothed density
         """
         assert (p_i in p_j_list), "must include particle i in this calculation"
         w_list = self.W(p_i, p_j_list)
@@ -299,6 +475,15 @@ class SPH_main(object):
 
 
     def LJ_boundary_force(self, p):
+        """
+        Adds acceleration to a particle p using a Lennard-Jones potential proportional
+        to its distance to the outermost boundary wall
+        Parameters
+        ----------
+        p: (object)
+            particle where calculations are being performed
+
+        """
         r_wall_left = abs(p.x[0] - self.min_x[0])
         if r_wall_left != 0:
             q_ref_left = self.d_ref / r_wall_left
@@ -325,7 +510,13 @@ class SPH_main(object):
         return None
 
     def timestepping(self, tf):
-        """Timesteps the physical problem with a set dt until user-specified time is reached"""
+        """
+        Timesteps the physical problem with a set dt
+        until user-specified time is reached.
+        Uses a Predictor-Corrector timestepping method and adds
+        artificial pressure to reduce tensile instability
+        in the problem
+        """
         dt = 0.1 * self.h / self.c0
         v_ij_max = 0
         a_max = 0
@@ -491,7 +682,7 @@ class SPH_main(object):
             self.allocate_to_grid()
 
             # append the state to file
-            if count % self.interval_save:
+            if count % self.interval_save == 0:
                 self.save_state()
 
             # update count and t
@@ -560,8 +751,31 @@ class SPH_main(object):
 
 
 class SPH_particle(object):
-    """Object containing all the properties for a single particle"""
+    """Particles class containing all the attributes for a single particle
+    Attributes
+    ----------
+    id: int
+        particle characteristic ID
+    main_data: class object
+        object that refers to the domain where particle is located. Should be created
+        from SPH_main class
+    x: array-like of floats
+        [x,y] position of the particle on the domain at time t_curr (m)
+    v: array-like of floats
+        [V_x, V_y] velocities of the particle on the domain at a time t_curr (m/s)
+    a: array-like of floats
+        [a_x, a_y] acceleration of the particle on the domain at a time t_curr (m/s^2)
+    D: float
+        rate of change of density of particle at a time t_curr (kg/m^3s)
+    P: float
+        pressure of particle at a time t_curr (Pa)
+    bound: boolean
+        Whether or not particle is a boundary (fixed) particle. 1 if it's a boundary 0 if not
+    adj: list-like of objects
+        list of neighbouring influencing particles
 
+
+    """
     _ids = count(0)
 
     def __init__(self, main_data=None, x=np.zeros(2)):
@@ -591,6 +805,64 @@ class SPH_particle(object):
 
 def sph_simulation(x_min, x_max, t_final, dx, func, path_name='./', ani=True,
                    **kwargs):
+    """
+    Simulates fluid flow from user-specified initial state and timeframe using
+    smoothed particle hydrodynamics method.
+
+    Parameters
+    ----------
+    x_min : list-like
+        List with [x,y] coordinates of bottom left boundary, assumed rectangular
+    x_max : list-like
+        List with [x,y] coordinates of upper right boundary, assumed rectangular
+    t_final : float
+        Timeframe of simulation.
+    dx : float
+        Initial distance between particles in domain. Particles assumed to be
+        equally spaced on domain specified by func
+    func : function
+        A function that specifies the initial distribution of particles in the
+        domain with a boolean output.
+    path name : string
+        Path where files are to be saved.
+    ani : boolean
+        "True" if animation is to be displayed and "False" if otherwise.
+
+    Other Parameters
+    ----------------
+    ani_step: int
+        frame skipping
+    ani_key: string
+        header for colorplot. Choose beteween: ID, Pressure, Density, V_x, and V_y
+    h_fac : float -- set attribute
+        bin half size constant (unitless).
+    mu : float -- set attribute
+        viscosity (Pa s) [Deafult value = 0.001]
+    rho0 : integer -- set attribute
+        initial particle density (kg/m^3). [Deafult value = 1000]
+    c0 : integer -- set attribute
+        fit-for-purpose speed of sound in water (m/s). [Deafult value = 20]
+    gamma : constant -- set attribute
+        stiffness value (unitless). [Deafult value = 7]
+    interval_smooth : integer -- set attribute
+        number of timesteps to which smooth rho (unitless). [Deafult value = 15]
+    interval_save : integer -- set attribute
+        number of timesteps at which the current states are saved (unitless).
+        [Deafult value = 15]
+    CFL : float -- set attribute
+        Scale factor for Courant–Friedrichs–Lewy condition (unitless). [Deafult value = 0.2]
+    g : 1D array -- set attribute
+        body force based 2D vector [gravity value (m/s^2)]. [Deafult value = [0, -9.81] ]
+    tf : float
+        Total real time to run simulation.
+    P_ref : float (only in the Forward Euler Module)
+        Boundary reference pressure to prevent leakages (Pa).
+    d_ref : float (only in the Forward Euler Module)
+        Reference distance for enforcing boundary pressure (m).
+    file_name : string
+        Name of file to be saved. If None saves with current time[Default = None]
+
+    """
     # validate kwargs
     sim_args = ['h_fac', 'mu', 'rho0', 'c0', 'gamma', 'interval_smooth',
                 'interval_save', 'CFL', 'g']
@@ -639,5 +911,7 @@ if __name__ == '__main__' and 1:
         else:
             return 0
 
-    sph_simulation(x_min=[0, 0], x_max=[20, 10], t_final=30, dx=0.5, func=f, path_name='./raw_data/',
-                   ani_step=10, ani_key="Pressure", file_name="example3")
+    sph_simulation(x_min=[0, 0], x_max=[20, 10], t_final=0.5, dx=1, func=f,
+                   path_name='./raw_data/', ani_step=1, ani_key="Pressure",
+                   file_name="final_sim")
+
