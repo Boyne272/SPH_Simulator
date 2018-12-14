@@ -11,121 +11,121 @@ from animate_results import load_and_set
 
 
 class SPH_main(object):
-"""
-A class for Smoothed Particle Hydrodynamics (SPH), a meshless method
-used for solving the Navier-Stokes equation to simulate a wave
-generation problem.
+    """
+    A class for Smoothed Particle Hydrodynamics (SPH), a meshless method
+    used for solving the Navier-Stokes equation to simulate a wave
+    generation problem.
 
-....
+    ....
 
-Attributes
-----------
+    Attributes
+    ----------
 
-h : float -- determined attribute
-    bin half size (meters). [Deafult value = 1.3]
-h_fac : float -- set attribute
-    bin half size constant (unitless).
-dx : float -- set attribute
-    particle spacing (meters).
-mu : float -- set attribute
-    viscosity (Pa s) [Deafult value = 0.001]
-rho0 : integer -- set attribute
-    initial particle density (kg/m^3). [Deafult value = 1000]
-c0 : integer -- set attribute
-    fit-for-purpose speed of sound in water (m/s). [Deafult value = 20]
-t_curr : float -- set attribute
-    current time of the system (s).
-gamma : constant -- set attribute
-    stiffness value (unitless). [Deafult value = 7]
-interval_smooth : integer -- set attribute
-    number of timesteps to which smooth rho (unitless). [Deafult value = 15]
-interval_save : integer -- set attribute
-    number of timesteps at which the current states are saved (unitless).
-    [Deafult value = 15]
-CFL : float -- set attribute
-    Scale factor for Courant–Friedrichs–Lewy condition (unitless). [Deafult value = 0.2]
-B : float -- determined attribute
-    pressure constant (Pa).
-g : 1D array -- set attribute
-    body force based 2D vector [gravity value (m/s^2)]. [Deafult value = [0, -9.81] ]
-file : file -- determined attribute
-    a file of results for post processing and visulaization.
-min_x : list
-    lower-left boundary for the domain.
-max_x : list
-    upper-right boundaries for the domain.
-max_list : list -- determined attribute
-    binning grid dimensions.
-search_grid : array
-    binning grid.
-t_curr : float -- set attribute
-    Dyanimc. Stores time at which simulation is being run. Starts at 0.
-w_fac1 : float -- set attribute
-    A constant for the smoothing function W (m^-2).
-w_fac2 : float -- set attribute
-    A constant for the derivative smoothing function dW (m^-3.)
-particle_list : list -- determined attribute
-    A list of particles to be simulated.
-search_grid : array -- determined attribute
-    An array of searched neighbouring particles.
-lil_bit : float-- determined attribute
-    An upper limit to get np arrange working as desired.
-P_ref : float -- determined attribute
-    Boundary reference pressure to prevent leakages (Pa).
-d_ref : float -- determined attribute
-    Reference distance for enforcing boundary pressure (m).
-func : list -- set attribute
-    A list containing O and 1 to distinguish fluid particles from
-    boundaries.
-interval_smooth : int -- set attribute
-    interval of timesteps at which density smoothing function is called
-interval_save : int -- set attribute
-    interval of timesteps at which data is appended to file
+    h : float -- determined attribute
+        bin half size (meters). [Deafult value = 1.3]
+    h_fac : float -- set attribute
+        bin half size constant (unitless).
+    dx : float -- set attribute
+        particle spacing (meters).
+    mu : float -- set attribute
+        viscosity (Pa s) [Deafult value = 0.001]
+    rho0 : integer -- set attribute
+        initial particle density (kg/m^3). [Deafult value = 1000]
+    c0 : integer -- set attribute
+        fit-for-purpose speed of sound in water (m/s). [Deafult value = 20]
+    t_curr : float -- set attribute
+        current time of the system (s).
+    gamma : constant -- set attribute
+        stiffness value (unitless). [Deafult value = 7]
+    interval_smooth : integer -- set attribute
+        number of timesteps to which smooth rho (unitless). [Deafult value = 15]
+    interval_save : integer -- set attribute
+        number of timesteps at which the current states are saved (unitless).
+        [Deafult value = 15]
+    CFL : float -- set attribute
+        Scale factor for Courant–Friedrichs–Lewy condition (unitless). [Deafult value = 0.2]
+    B : float -- determined attribute
+        pressure constant (Pa).
+    g : 1D array -- set attribute
+        body force based 2D vector [gravity value (m/s^2)]. [Deafult value = [0, -9.81] ]
+    file : file -- determined attribute
+        a file of results for post processing and visulaization.
+    min_x : list
+        lower-left boundary for the domain.
+    max_x : list
+        upper-right boundaries for the domain.
+    max_list : list -- determined attribute
+        binning grid dimensions.
+    search_grid : array
+        binning grid.
+    t_curr : float -- set attribute
+        Dyanimc. Stores time at which simulation is being run. Starts at 0.
+    w_fac1 : float -- set attribute
+        A constant for the smoothing function W (m^-2).
+    w_fac2 : float -- set attribute
+        A constant for the derivative smoothing function dW (m^-3.)
+    particle_list : list -- determined attribute
+        A list of particles to be simulated.
+    search_grid : array -- determined attribute
+        An array of searched neighbouring particles.
+    lil_bit : float-- determined attribute
+        An upper limit to get np arrange working as desired.
+    P_ref : float -- determined attribute
+        Boundary reference pressure to prevent leakages (Pa).
+    d_ref : float -- determined attribute
+        Reference distance for enforcing boundary pressure (m).
+    func : list -- set attribute
+        A list containing O and 1 to distinguish fluid particles from
+        boundaries.
+    interval_smooth : int -- set attribute
+        interval of timesteps at which density smoothing function is called
+    interval_save : int -- set attribute
+        interval of timesteps at which data is appended to file
 
 
-Methods
--------
-determine_values():
-    Aids to determine initial simulation parameters.
-initialise_grid():
-    Intializes the domain for simulation.
-add_boundaries():
-    Adds the boundary points of at least 2h around the edges.
-place_points(xmin, xmax):
-    Place points in a rectangle with a square spacing of specific value.
-allocate_to_grid():
-    Allocates all the points to a grid to aid neighbours' searching.
-neighbour_iterate(part):
-    Finds all the particles within the search range of a specific particle.
-plot_current_state():
-    Plots the current state of the system (i.e. where every particles are)
-    in space.
-W(p_i, p_j_list):
-    Calculates Smoothing factor for a particle being affected by
-    neighbouring particles within the specified neighbourhood.
-dW(p_i, p_j_list):
-    Calculates the derivative Smoothing factor for a particle being
-    affected by neighbouring particles within the specified neighbourhood.
-LJ_boundary_force(p):
-    Enforces boundary force to prevent fluid particles' leaking.
-rho_smoothing(p_i, p_j_list):
-    determines the smoothed density of a particle interest.
-timestepping(tf):
-    Timesteps the physical problem with a set dt until
-    user-specified time is reached.
-set_up_save(name, path):
-    Saves the initial setup of the system and creates the csv file to
-    store ongoing results as solution runs.
-save_state():
-    Append the current state of every particle in the system to the
-    end of the csv file.
-R_artificial_pressure(p_i, p_j_list, step) -- sph_ap only:
-    Determines the R component of the artificial pressure.
-dW_artificial_pressure(p_i, p_j_list, step) -- sph_ap only:
-    Calculates the derivative Smoothing factor component of the artificial
-    pressure for a particle being affected by neighbouring particles
-    within the specified neighbourhood.
-"""
+    Methods
+    -------
+    determine_values():
+        Aids to determine initial simulation parameters.
+    initialise_grid():
+        Intializes the domain for simulation.
+    add_boundaries():
+        Adds the boundary points of at least 2h around the edges.
+    place_points(xmin, xmax):
+        Place points in a rectangle with a square spacing of specific value.
+    allocate_to_grid():
+        Allocates all the points to a grid to aid neighbours' searching.
+    neighbour_iterate(part):
+        Finds all the particles within the search range of a specific particle.
+    plot_current_state():
+        Plots the current state of the system (i.e. where every particles are)
+        in space.
+    W(p_i, p_j_list):
+        Calculates Smoothing factor for a particle being affected by
+        neighbouring particles within the specified neighbourhood.
+    dW(p_i, p_j_list):
+        Calculates the derivative Smoothing factor for a particle being
+        affected by neighbouring particles within the specified neighbourhood.
+    LJ_boundary_force(p):
+        Enforces boundary force to prevent fluid particles' leaking.
+    rho_smoothing(p_i, p_j_list):
+        determines the smoothed density of a particle interest.
+    timestepping(tf):
+        Timesteps the physical problem with a set dt until
+        user-specified time is reached.
+    set_up_save(name, path):
+        Saves the initial setup of the system and creates the csv file to
+        store ongoing results as solution runs.
+    save_state():
+        Append the current state of every particle in the system to the
+        end of the csv file.
+    R_artificial_pressure(p_i, p_j_list, step) -- sph_ap only:
+        Determines the R component of the artificial pressure.
+    dW_artificial_pressure(p_i, p_j_list, step) -- sph_ap only:
+        Calculates the derivative Smoothing factor component of the artificial
+        pressure for a particle being affected by neighbouring particles
+        within the specified neighbourhood.
+    """
 
     def __init__(self, x_min=(0.0, 0.0), x_max=(1.0, 1.0), dx=0.02):
 
@@ -804,13 +804,12 @@ def sph_simulation(x_min, x_max, t_final, dx, func, path_name='./', ani=True,
 
 
 if __name__ == '__main__' and 1:
-
     def f(x, y):
         if 0 <= y <= 2 or (0 <= x <= 3 and 0 <= y <= 5):
             return 1
         else:
             return 0
 
-    sph_simulation(x_min=[0, 0], x_max=[20, 10], t_final=30, dx=0.2, func=f,
-                   path_name='./raw_data/', ani_step=10, ani_key="Pressure",
-                   file_name="final_sim", x_ref=1.9)
+    sph_simulation(x_min=[0, 0], x_max=[20, 10], t_final=0.5, dx=1, func=f,
+                   path_name='./raw_data/', ani_step=1, ani_key="Pressure",
+                   file_name="final_sim", x_ref=0.9)
