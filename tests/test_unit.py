@@ -18,10 +18,10 @@ def test_W_dW():
     domain3.determine_values()
 
     # Particle class in fe, ie, ap are identical and unchanged
-    a = fe.SPH_particle(x=np.array([5, 6]))
-    b = fe.SPH_particle(x=np.array([5.02, 6.04]))
-    c = fe.SPH_particle(x=np.array([5.0003, 6.0003]))
-    d = fe.SPH_particle(x=np.array([9, 15]))
+    a = fe.Particle(x=np.array([5, 6]))
+    b = fe.Particle(x=np.array([5.02, 6.04]))
+    c = fe.Particle(x=np.array([5.0003, 6.0003]))
+    d = fe.Particle(x=np.array([9, 15]))
     p_j_list = [b, c, d]
 
     assert(np.isclose(domain1.W(a, p_j_list),
@@ -47,16 +47,16 @@ def test_rho_smoothing():
     domain3 = ap.SPH_main()
     domain3.determine_values()
 
-    a = fe.SPH_particle(x=np.array([5, 6]))
+    a = fe.Particle(x=np.array([5, 6]))
     a.rho = 1000  # kg m^-3
 
-    b = fe.SPH_particle(x=np.array([5.02, 6.04]))
+    b = fe.Particle(x=np.array([5.02, 6.04]))
     b.rho = 1200  # kg m^-3
 
-    c = fe.SPH_particle(x=np.array([5.0003, 6.0003]))
+    c = fe.Particle(x=np.array([5.0003, 6.0003]))
     c.rho = 900  # kg m^-3
 
-    d = fe.SPH_particle(x=np.array([9, 15]))
+    d = fe.Particle(x=np.array([9, 15]))
     d.rho = 100  # kg m^-3
 
     p_j_list = [a, b, c, d]
@@ -116,19 +116,19 @@ def test_R_dW_artificial_pressure():
     system.initialise_grid(f)
     system.allocate_to_grid()
 
-    p_i = ap.SPH_particle(x=np.array([5, 6]))
+    p_i = ap.Particle(x=np.array([5, 6]))
     p_i.P = 5000
     p_i.rho = 1200
 
-    p_j1 = ap.SPH_particle(x=np.array([5.02, 5.92]))
+    p_j1 = ap.Particle(x=np.array([5.02, 5.92]))
     p_j1.P = 2000
     p_j1.rho = 1205
 
-    p_j2 = ap.SPH_particle(x=np.array([5.04, 5.97]))
+    p_j2 = ap.Particle(x=np.array([5.04, 5.97]))
     p_j2.P = 2000
     p_j2.rho = 1205
 
-    p_j3 = ap.SPH_particle(x=np.array([5.08, 6.04]))
+    p_j3 = ap.Particle(x=np.array([5.08, 6.04]))
     p_j3.P = 2000
     p_j3.rho = 1205
 

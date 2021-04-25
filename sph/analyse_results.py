@@ -28,7 +28,7 @@ times = np.unique(data.index)
 if 1:
     dens = data['Density']
     rho0 = dens.loc[0].mean()
-    
+
     # find the data lims
     minimum = []
     maximum = []
@@ -49,10 +49,10 @@ if 1:
             'b-', label='upper std')
     ax.plot(times[::10], np.array(average[::10]) - np.array(std[::10]),
             'r-', label='lower std')
-    
+
 #    ax.hlines(rho0*1.5, min(times), max(times), color='k', label=r'$1.5\rho_0$')
 #    ax.hlines(rho0*0.5, min(times), max(times), label=r'$0.5\rho_0$')
-    
+
     ax.set(title='Density vairations with time', xlabel=r'Time $[s]$',
            ylabel=r'Density $[\frac{kg}{m^3}]$')
     ax.legend()
