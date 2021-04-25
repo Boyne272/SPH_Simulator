@@ -11,7 +11,7 @@ import sph.sph_ie as ie
 
 def test_W_dW():
     domain1 = fe.SPH_main()
-    domain1.determine_values()
+    # domain1.determine_values()
     domain2 = ie.SPH_main()
     domain2.determine_values()
     domain3 = ap.SPH_main()
@@ -41,7 +41,7 @@ def test_W_dW():
 
 def test_rho_smoothing():
     domain1 = fe.SPH_main()
-    domain1.determine_values()
+    # domain1.determine_values()
     domain2 = ie.SPH_main()
     domain2.determine_values()
     domain3 = ap.SPH_main()
@@ -76,7 +76,7 @@ def test_setup_save():
 
     # Save function is identical in all 3
     domain1 = fe.SPH_main(x_min=[0, 0], x_max=[20, 20], dx=1)
-    domain1.determine_values()
+    # domain1.determine_values()
     domain1.initialise_grid(f)
     domain1.allocate_to_grid()
     domain1.set_up_save(name='test', path='./')

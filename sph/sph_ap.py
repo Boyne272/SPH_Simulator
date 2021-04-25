@@ -8,7 +8,7 @@ import pickle as pi
 import warnings
 
 from sph.animate_results import load_and_set, animate
-from sph.sph import Particle
+from sph.sph import Particle, SysVals
 
 
 class SPH_main(object):
@@ -129,6 +129,9 @@ class SPH_main(object):
     """
 
     def __init__(self, x_min=(0.0, 0.0), x_max=(1.0, 1.0), dx=0.02):
+
+        # TODO this is the only current change
+        self.sys = SysVals(x_min, x_max, dx)
 
         # set empty attributes for later
         self.h = None
