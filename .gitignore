@@ -1,5 +1,8 @@
-# ignore raw data 
+# Project
 raw_data/*
+
+# VS code
+*.code-workspace
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
