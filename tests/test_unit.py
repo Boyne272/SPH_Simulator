@@ -1,10 +1,12 @@
+"""Small collection of old unit tests."""
+
 import numpy as np
 import pickle as pi
 import os
 
-import sph_ap as ap
-import sph_fe as fe
-import sph_ie as ie
+import sph.sph_ap as ap
+import sph.sph_fe as fe
+import sph.sph_ie as ie
 
 
 def test_W_dW():
@@ -134,15 +136,3 @@ def test_R_dW_artificial_pressure():
 
     assert (np.isclose(system.R_artificial_pressure(p_i, pj_list, 1), [0.00009699, 0.00009699, 0.00009699]).all())
     assert (np.isclose(system.dW_artificial_pressure(p_i, pj_list, 1), [-0.03870062, -0.02372638, -0.04184862]).all())
-
-
-# def test_timestepping():
-#     domain1 = fe.SPH_main()
-#     domain1.determine_values()
-#     domain2 = ie.SPH_main()
-#     domain2.determine_values()
-#     domain3 = ap.SPH_main()
-#     domain3.determine_values()
-#
-#     domain1.timestepping(1)
-#

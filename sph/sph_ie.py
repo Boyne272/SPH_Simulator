@@ -6,7 +6,8 @@ import sys
 from datetime import datetime
 import pickle as pi
 import warnings
-from animate_results import load_and_set, animate
+
+from sph.animate_results import load_and_set, animate
 
 
 class SPH_main(object):

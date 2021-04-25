@@ -7,7 +7,7 @@ from datetime import datetime
 import pickle as pi
 import warnings
 import time
-from animate_results import load_and_set
+from sph.animate_results import load_and_set
 
 
 class SPH_main(object):
@@ -783,9 +783,9 @@ def sph_simulation(x_min, x_max, t_final, dx, func, path_name='./', ani=True,
         system.set_up_save(path=path_name)
 
     # solve the system
-    t = time.clock()
+    t = time.time()
     system.timestepping(tf=t_final)
-    print('\nTime taken :', time.clock()-t)
+    print('\nTime taken :', time.time()-t)
 
     # animate result
     if ani:

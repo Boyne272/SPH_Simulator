@@ -1,15 +1,12 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-<Description>
-
-Created on Thu Dec 13 16:06:51 2018
-@author: Richard Boyne rmb115@ic.ac.uk
-"""
+"""Integration tests that check common physical laws are obeyed on a short simulation."""
 
 import numpy as np
 import pandas as pd
-from sph_fe import sph_simulation
+
+from sph.sph_fe import sph_simulation
+
+
+TEST_FILE = 'tests/to_travis'  # location to store test data
 
 
 def test_short_run():
@@ -23,13 +20,13 @@ def test_short_run():
             return 0
 
     sph_simulation(x_min=[0, 0], x_max=[20, 10], t_final=1, dx=0.8,
-                   func=f, ani=False, file_name="to_travis")
+                   func=f, ani=False, file_name=TEST_FILE)
 
 
 def test_speedofsound():
     "test the speed never exceeds speed of sound (20)"
     # load the data
-    file_name = 'to_travis.csv'
+    file_name = f'{TEST_FILE}.csv'
     data = pd.read_csv(file_name, skiprows=2, index_col=False)
     data = data.set_index('Time')
 
@@ -40,7 +37,7 @@ def test_speedofsound():
 
 def test_density():
     # load the data
-    file_name = 'to_travis.csv'
+    file_name = f'{TEST_FILE}.csv'
     data = pd.read_csv(file_name, skiprows=2, index_col=False)
     data = data.set_index('Time')
     times = np.unique(data.index)
@@ -70,7 +67,7 @@ def test_overlap():
     Can only test overlap on a couple of points due to computation time
     """
     # load the data
-    file_name = 'to_travis.csv'
+    file_name = f'{TEST_FILE}.csv'
     data = pd.read_csv(file_name, skiprows=2, index_col=False)
     data = data.set_index('Time')
     times = np.unique(data.index)
