@@ -6,9 +6,7 @@ import sys
 from datetime import datetime
 import pickle as pi
 import warnings
-
-from sph.animate_results import load_and_set, animate
-from sph.sph import Particle, SysVals
+from animate_results import load_and_set, animate
 
 
 class SPH_main(object):
@@ -130,9 +128,6 @@ class SPH_main(object):
 
     def __init__(self, x_min=(0.0, 0.0), x_max=(1.0, 1.0), dx=0.02):
 
-        # TODO this is the only current change
-        self.sys = SysVals(x_min, x_max, dx)
-
         # set empty attributes for later
         self.h = None
         self.B = 0.0
@@ -242,7 +237,7 @@ class SPH_main(object):
             y location of particle assuming positive up and negative down"""
 
         # create particle object and assign index
-        particle = Particle(self, np.array([x, y]))
+        particle = SPH_particle(self, np.array([x, y]))
         particle.calc_index()
 
         # intiialise physical paramteres of particles
@@ -262,16 +257,16 @@ class SPH_main(object):
                 self.search_grid[i, j] = []
 
         for cnt in self.particle_list:
-            self.search_grid[cnt.grid_cord[0], cnt.grid_cord[1]].append(cnt)
+            self.search_grid[cnt.list_num[0], cnt.list_num[1]].append(cnt)
 
 
     def neighbour_iterate(self, part):
         """Find all the particles within 2h of the specified particle"""
         part.adj = []  # needs to be reseted every time it's called
-        for i in range(max(0, part.grid_cord[0] - 1),
-                       min(part.grid_cord[0] + 2, self.max_list[0])):
-            for j in range(max(0, part.grid_cord[1] - 1),
-                           min(part.grid_cord[1] + 2, self.max_list[1])):
+        for i in range(max(0, part.list_num[0] - 1),
+                       min(part.list_num[0] + 2, self.max_list[0])):
+            for j in range(max(0, part.list_num[1] - 1),
+                           min(part.list_num[1] + 2, self.max_list[1])):
                 for other_part in self.search_grid[i, j]:
                     if part is not other_part:
                         dn = part.x - other_part.x  # ####### use this later
@@ -753,6 +748,59 @@ class SPH_main(object):
                                         p.v[0], p.v[1], p.a[0], p.a[1], p.P,
                                         p.rho, p.bound)]) + '\n'
             self.file.write(string)
+
+
+class SPH_particle(object):
+    """Particles class containing all the attributes for a single particle
+    Attributes
+    ----------
+    id: int
+        particle characteristic ID
+    main_data: class object
+        object that refers to the domain where particle is located. Should be created
+        from SPH_main class
+    x: array-like of floats
+        [x,y] position of the particle on the domain at time t_curr (m)
+    v: array-like of floats
+        [V_x, V_y] velocities of the particle on the domain at a time t_curr (m/s)
+    a: array-like of floats
+        [a_x, a_y] acceleration of the particle on the domain at a time t_curr (m/s^2)
+    D: float
+        rate of change of density of particle at a time t_curr (kg/m^3s)
+    P: float
+        pressure of particle at a time t_curr (Pa)
+    bound: boolean
+        Whether or not particle is a boundary (fixed) particle. 1 if it's a boundary 0 if not
+    adj: list-like of objects
+        list of neighbouring influencing particles
+
+
+    """
+    _ids = count(0)
+
+    def __init__(self, main_data=None, x=np.zeros(2)):
+        self.id = next(self._ids)
+        self.main_data = main_data
+        self.x = np.array(x)
+        self.x_temp = np.array(x)
+        self.v = np.zeros(2)
+        self.v_temp = np.zeros(2)
+        self.a = np.zeros(2)
+        self.D = 0
+        self.rho = 0.0
+        self.rho_temp = 0.0
+        self.P = 0.0
+        self.m = 0.0
+        self.bound = None
+        self.adj = []
+
+    def calc_index(self):
+        """
+        Calculates the 2D integer index for the particle's
+        location in the search grid
+        """
+        self.list_num = np.array((self.x - self.main_data.min_x) /
+                                 (2.0 * self.main_data.h), int)
 
 
 def sph_simulation(x_min, x_max, t_final, dx, func, path_name='./', ani=True,

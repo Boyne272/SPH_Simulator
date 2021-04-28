@@ -107,6 +107,7 @@ class SysVals:
 
     # derived attributes in __post_init__
     h: float = 0.0
+    dt: float = 0.0
     lil_bit: float = 0.0
     B: float = 0.0
     w_fac1: float = 0.0
@@ -123,8 +124,9 @@ class SysVals:
         self.max_x = np.array(self.x_max, float)
 
         # determine_values
+        # self.dt = 0.1 * self.sys.h / self.sys.c0      # reasonable time step TODO add me
         self.h = self.dx*self.h_fac                   # bin half-size
-        self.sr = 2 * self.h                           # search radius
+        self.sr = 2 * self.h                          # search radius
         self.lil_bit = self.dx*0.01                   # to include upper limits
         self.B = self.rho0 * self.c0**2 / self.gamma  # pressure constant (Pa)
         self.w_fac1 = 10 / (7 * np.pi * self.h ** 2)  # constant often used
