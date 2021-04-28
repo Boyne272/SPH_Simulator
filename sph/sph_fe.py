@@ -9,7 +9,7 @@ import warnings
 import time
 
 from sph.animate_results import load_and_set
-from sph.sph import Particle, SysVals
+from sph.sph import Grid, Particle, SysVals
 
 
 class SPH_main(object):
@@ -134,181 +134,16 @@ class SPH_main(object):
         # system setup
         self.sys = SysVals(x_min, x_max, dx)
 
-        self.particle_list = []
-        self.search_grid = np.empty((0, 0), object)
+        self.grid = Grid(self.sys)
+
+        # self.particle_list = []
+        self.grid.search_grid = np.empty((0, 0), object)
 
         self.file = None
 
     def initialise_grid(self, func):
-        """
-        Initalise simulation grid.
-        func takes array x and returns 1 for particle in fluid or 0 for no particle
-        """
-
-        assert self.sys.h is not None, 'must run determine values first'
-        assert callable(func), 'func must be a function'
-
-        # set internal points
-        for x in np.arange(self.sys.min_x[0], self.sys.max_x[0] + self.sys.lil_bit,
-                           self.sys.dx):
-            for y in np.arange(self.sys.min_x[1], self.sys.max_x[1] + self.sys.lil_bit,
-                               self.sys.dx):
-                if func(x, y) == 1:
-                    self.place_point(x, y, bound=0)
-
-        self.add_boundaries()  # create the boundary points
-
-        # check there are no duplicate points
-        tmp = np.array([p.x for p in self.particle_list])
-        assert np.unique(tmp, axis=0).shape[0] == len(tmp), \
-            'there is a duplicate point'
-
-        # setup the search array (find size then create array)
-        self.sys.grid_max = np.array((self.sys.max_x-self.sys.min_x)/(2.0*self.sys.h)+1, int)
-        self.search_grid = np.empty(self.sys.grid_max, object)
-
-    def add_boundaries(self):
-        """ Adds the boundary points so at least 2h around the edge """
-        # create the boundary points
-        tmp_diff = 0
-        while tmp_diff < 2.0*self.sys.h:
-            tmp_diff += self.sys.dx
-            tmp_min = self.sys.min_x - tmp_diff
-            tmp_max = self.sys.max_x + tmp_diff
-
-            # upper and lower rows
-            for x in np.arange(tmp_min[0], tmp_max[0] + self.sys.lil_bit, self.sys.dx):
-                self.place_point(x, tmp_min[1], bound=1)
-                self.place_point(x, tmp_max[1], bound=1)
-
-            # left and right (removing corners)
-            tmp = np.arange(tmp_min[1], tmp_max[1] + self.sys.lil_bit, self.sys.dx)
-            for i, y in enumerate(tmp):
-                if i != 0 and i != len(tmp)-1:
-                    self.place_point(tmp_min[0], y, bound=1)
-                    self.place_point(tmp_max[0], y, bound=1)
-
-        # account for the boundary particle changing limits
-        self.sys.min_x -= tmp_diff
-        self.sys.max_x += tmp_diff
-
-    def place_point(self, x, y, bound=0):
-        """Place particle at point given and assigns the particle attribute boundary
-        x: float
-            x location of particle assuming positive to the right and negative to the left
-        y: float
-            y location of particle assuming positive up and negative down"""
-
-        # create particle object and assign index
-        particle = Particle(self, np.array([x, y]))
-        particle.calc_index()
-
-        # intiialise physical paramteres of particles
-        particle.rho = self.sys.rho0
-        particle.m = self.sys.dx**2 * self.sys.rho0
-        particle.P = 0.
-        particle.bound = bound
-
-        # append particle object to list of particles
-        self.particle_list.append(particle)
-
-    def allocate_to_grid(self):
-        """Allocate all the points to a grid to aid neighbour searching"""
-        for i in range(self.sys.grid_max[0]):
-            for j in range(self.sys.grid_max[1]):
-                self.search_grid[i, j] = []
-
-        for cnt in self.particle_list:
-            self.search_grid[cnt.list_num[0], cnt.list_num[1]].append(cnt)
-
-    def neighbour_iterate(self, part):
-        """Find all the particles within 2h of the specified particle"""
-        part.adj = []  # needs to be reseted every time it's called
-        for i in range(max(0, part.list_num[0] - 1),
-                       min(part.list_num[0] + 2, self.sys.grid_max[0])):
-            for j in range(max(0, part.list_num[1] - 1),
-                           min(part.list_num[1] + 2, self.sys.grid_max[1])):
-                for other_part in self.search_grid[i, j]:
-                    if part is not other_part:
-                        dn = part.x - other_part.x  # ####### use this later
-                        dist = np.sqrt(np.sum(dn ** 2))
-                        if dist < 2.0 * self.sys.h:
-                            part.adj.append(other_part)
-        return None
-
-    def neighbour_iterate_half(self, part):
-        """Find upper only particles within 2h of the specified particle
-        part: class object
-            particle from particles class
-        """
-        part.adj = []  # needs to be reseted every time it's called
-
-        # pick the correct sencil points
-        for i in range(max(0, part.list_num[0] - 1),
-                       min(part.list_num[0] + 2, self.sys.grid_max[0])):
-            for j in range(max(0, part.list_num[1] - 1),
-                           min(part.list_num[1] + 2, self.sys.grid_max[1])):
-                # in the row above
-                if (j == part.list_num[1] + 1):
-                    self.non_central_gridpoint(part, i, j)
-                # if in the current row
-                elif (j == part.list_num[1]):
-                    # left point
-                    if (i == part.list_num[0] - 1):
-                        self.non_central_gridpoint(part, i, j)
-                    # center point
-                    elif (i == part.list_num[0]):
-                        self.central_gridpoint(part, i, j)
-        return None
-
-    def non_central_gridpoint(self, part, i, j):
-        """Find neighbouring grids of particle (excluding its own)
-        part: class object
-            particle from particles class
-        i: index
-            x-grid coordinate
-        j: index
-            y-grid coordinate
-        """
-        # for all particles in the grid
-        for other_part in self.search_grid[i, j]:
-            # add it to the adjasent list
-            dn = part.x - other_part.x
-            dist = np.sqrt(np.sum(dn ** 2))
-            if dist < 2.0 * self.sys.h:
-                part.adj.append(other_part)
-
-    def central_gridpoint(self, part, i, j):
-        """Find neighbouring grids of particle (excluding its own)
-        part: class object
-            particle from particles class
-        i: index
-            x-grid coordinate
-        j: index
-            y-grid coordinate
-        """
-        # for all particles in the grid
-        for other_part in self.search_grid[i, j]:
-
-            # if not the particle
-            if part is not other_part:
-                # if not below current particle
-                if (other_part.id < part.id):
-                    # add it to the adjasent list
-                    dn = part.x - other_part.x
-                    dist = np.sqrt(np.sum(dn ** 2))
-                    if dist < 2.0 * self.sys.h:
-                        part.adj.append(other_part)
-
-    def plot_current_state(self):
-        """
-        Plots the current state of the system (i.e. where every particle is)
-        in space.
-        """
-        x = np.array([p.x for p in self.particle_list])
-        bs = [p.bound for p in self.particle_list]
-        plt.scatter(x[:, 0], x[:, 1], c=bs)
-        plt.gca().set(xlabel='x', ylabel='y', title='Current State')
+        # TODO remove me
+        self.grid.initialise_grid(func)
 
     def W(self, p_i, p_j_list):
         """
@@ -441,6 +276,7 @@ class SPH_main(object):
 
         # initialise vairables
         dt = 0.1 * self.sys.h / self.sys.c0
+        print('DT ---------------- ', dt)
         v_ij_max = 0
         a_max = 0
         rho_max_condition = 0
@@ -452,9 +288,9 @@ class SPH_main(object):
             sys.stdout.flush()
 
             # find all the derivatives for each particle
-            for i, p_i in enumerate(self.particle_list):
+            for i, p_i in enumerate(self.grid.particle_list):
                 # create list of neighbours for particle i
-                self.neighbour_iterate_half(p_i)
+                self.grid.neighbour_iterate_half(p_i)
 
                 if p_i.adj != []:
                     # calculate smoothing from all neighbouring particles
@@ -501,7 +337,7 @@ class SPH_main(object):
                       (p_i.x > self.sys.max_x).any()):
                     # remove leaked particles
                     warnings.warn("Particle %g has leaked" % (p_i.id))
-                    self.particle_list.remove(p_i)
+                    self.grid.particle_list.remove(p_i)
 
             # Updating the time step
             if count > 1:
@@ -512,12 +348,12 @@ class SPH_main(object):
 
             # if smoothing find all adjasent particles
             if count % self.sys.interval_smooth == 0:
-                for p_i in self.particle_list:
-                    self.neighbour_iterate(p_i)
+                for p_i in self.grid.particle_list:
+                    self.grid.neighbour_iterate(p_i)
 
             # updating each particles values
-            assert all(i == p_i.id for i, p_i in enumerate(self.particle_list))
-            for i, p_i in enumerate(self.particle_list.copy()):
+            assert all(i == p_i.id for i, p_i in enumerate(self.grid.particle_list))
+            for i, p_i in enumerate(self.grid.particle_list.copy()):
                 # if particle is not at the boundary
                 if not p_i.bound:
                     p_i.x = p_i.x + dt * p_i.v  # update position
@@ -535,15 +371,12 @@ class SPH_main(object):
                 # update pressure
                 p_i.P = self.sys.B * ((p_i.rho / self.sys.rho0) ** self.sys.gamma - 1)
 
-                # update particle indices
-                p_i.calc_index()
-
                 # reset the acceleration and D values
                 p_i.a = self.sys.g
                 p_i.D = 0
 
             # re-allocate particles to grid
-            self.allocate_to_grid()
+            self.grid.allocate_to_grid()
 
             # append the state to file
             if count % self.sys.interval_save == 0:
@@ -576,7 +409,7 @@ class SPH_main(object):
         # save the config file
         file = open(path + name + '_config.pkl', 'wb')
         to_save = vars(self).copy()
-        [to_save.pop(key) for key in ('search_grid', 'particle_list')]
+        [to_save.pop(key) for key in ('grid',)]
         pi.dump(to_save, file, pi.HIGHEST_PROTOCOL)
         file.close()
 
@@ -603,7 +436,7 @@ class SPH_main(object):
         """
         assert self.file is not None, 'set_up_save() has not been run'
 
-        for p in self.particle_list:
+        for p in self.grid.particle_list:
             string = ''.join([str(v) + ','
                               for v in (self.sys.t_curr, p.id, p.x[0], p.x[1],
                                         p.v[0], p.v[1], p.P,
@@ -685,7 +518,7 @@ def sph_simulation(x_min, x_max, t_final, dx, func, path_name='./', ani=True,
         if key in sim_args:
             exec('system.' + key + '= kwargs[key]')
     system.initialise_grid(func)
-    system.allocate_to_grid()
+    system.grid.allocate_to_grid()
     if "file_name" in kwargs:
         system.set_up_save(name=kwargs['file_name'], path=path_name)
     else:

@@ -262,16 +262,16 @@ class SPH_main(object):
                 self.search_grid[i, j] = []
 
         for cnt in self.particle_list:
-            self.search_grid[cnt.list_num[0], cnt.list_num[1]].append(cnt)
+            self.search_grid[cnt.grid_cord[0], cnt.grid_cord[1]].append(cnt)
 
 
     def neighbour_iterate(self, part):
         """Find all the particles within 2h of the specified particle"""
         part.adj = []  # needs to be reseted every time it's called
-        for i in range(max(0, part.list_num[0] - 1),
-                       min(part.list_num[0] + 2, self.max_list[0])):
-            for j in range(max(0, part.list_num[1] - 1),
-                           min(part.list_num[1] + 2, self.max_list[1])):
+        for i in range(max(0, part.grid_cord[0] - 1),
+                       min(part.grid_cord[0] + 2, self.max_list[0])):
+            for j in range(max(0, part.grid_cord[1] - 1),
+                           min(part.grid_cord[1] + 2, self.max_list[1])):
                 for other_part in self.search_grid[i, j]:
                     if part is not other_part:
                         dn = part.x - other_part.x  # ####### use this later
