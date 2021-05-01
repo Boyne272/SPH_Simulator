@@ -4,14 +4,14 @@
 
 import matplotlib.pyplot as plt
 
-def mpl_settings():
+def mpl_settings(**kwargs):
     """Nice Matplotlib settings."""
     plt.rc('axes', titlesize=20, labelsize=20)
     plt.rc('axes.formatter', limits=[-4, 4])
     plt.rc('ytick', labelsize=12)
     plt.rc('xtick', labelsize=12)
     plt.rc('lines', linewidth=1.5, markersize=7)
-    plt.rc('figure', figsize=(9, 9))
+    plt.rc('figure', figsize=(15, 15))
     plt.rc('legend', fontsize=15)
 mpl_settings()
 

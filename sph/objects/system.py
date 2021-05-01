@@ -15,8 +15,8 @@ class System:
     """All the constants that create this system."""
 
     # system main parameters
-    _x_min: tuple = (0., 0.)    # lower left corner
-    _x_max: tuple = (1., 1.)    # upper right corner
+    min_x: tuple = (0., 0.)    # lower left corner
+    max_x: tuple = (1., 1.)    # upper right corner
     dx: float = 0.02            # initial particle spacing
     h_fac: float = 1.3          # bin half size constant (unitless)
 
@@ -29,6 +29,7 @@ class System:
     g_mag: float = 9.81         # gravity mangintude (m/s^2)
     P_fac: float = 1.05         # scale for LJ reference pressure
     x_ref: float = 0.9          # scale for LJ reference distance
+    pad_fac: float = 1.         # scale for padding boundaries
     smooth_steps: int = 15      # timesteps to smooth rho (dimensionless)
     save_steps: int = 15        # timesteps to save the state (dimensionless)
 
@@ -41,7 +42,7 @@ class System:
 
     # derived attributes in __post_init__
     h: float = 0.0
-    sr: float = 0.0
+    d_srch: float = 0.0
     dt: float = 0.0
     B: float = 0.0
     w_fac1: float = 0.0
@@ -51,10 +52,6 @@ class System:
 
     def __post_init__(self):
         """Set all the dervied constants."""
-        # cast values
-        self.x_min = np.array(self._x_min, float)
-        self.x_max = np.array(self._x_max, float)
-
         # set the seed
         self.seed = self.seed or np.random.randint(0, 2147483647)
         self.rand = self.rand or RngState(self.seed)        # random state for the system
@@ -62,17 +59,28 @@ class System:
         # calculate derived attributes
         self.h = self.dx*self.h_fac                         # bin half-size
         self.dt = 0.1 * self.h / self.c0                    # reasonable time step TODO add update method
-        self.sr = 2 * self.h                                # search radius
+        self.d_srch = 2 * self.h                            # search radius
         self.B = self.rho0 * self.c0**2 / self.gamma        # pressure constant (Pa)
         self.w_fac1 = 10 / (7 * np.pi * self.h ** 2)        # constant often used
         self.w_fac2 = 10 / (7 * np.pi * self.h ** 3)        # constant often used
         self.P_ref = self.B*(self.P_fac**self.gamma - 1)    # boundary pressure to prevent leakages (Pa).
         self.d_ref = self.x_ref * self.dx                   # distance boundary pressure (m)
 
+        # expand the range for boundaries
+        self.x_inner_min = np.array(self.min_x, float)
+        self.x_inner_max = np.array(self.max_x, float)
+        self.x_min = self.x_inner_min - (self.d_srch * self.pad_fac)
+        self.x_max = self.x_inner_max + (self.d_srch * self.pad_fac)
+        self.x_range = np.array([self.x_min[0], self.x_max[0]])
+        self.y_range = np.array([self.x_min[1], self.x_max[1]])
+
     @property
     def as_dict(self) -> dict:
         """Write this system as a dict, replacing the rand object with its string representation."""
-        props = {k: v for k, v in vars(self).items() if k not in ['x_max', 'x_min']}  # arrays bad for json/hash
+        props = {
+            k: v for k, v in vars(self).items()
+            if k not in ['x_max', 'x_min', 'x_inner_min', 'x_inner_max', 'x_range', 'y_range']
+        }  # arrays bad for json/hash
         return {**props, 'rand': self.rand.as_string()}
 
     def as_json(self, rand: bool = True) -> str:

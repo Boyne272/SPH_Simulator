@@ -1,5 +1,6 @@
 # Project
 raw_data/*
+.vscode
 
 # VS code
 *.code-workspace
