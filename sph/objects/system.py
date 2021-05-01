@@ -26,7 +26,7 @@ class System:
     c0: float = 20.             # speed of sound in water (m/s)
     gamma: float = 7.           # stiffness value (dimensionless)
     CFL: float = 0.2            # CFL constant (dimensionless)
-    g_mag: float = 9.81         # gravity mangintude (m/s^2)
+    grav: tuple = (0., -9.81)   # gravity mangintude (m/s^2)
     P_fac: float = 1.05         # scale for LJ reference pressure
     x_ref: float = 0.9          # scale for LJ reference distance
     pad_fac: float = 1.         # scale for padding boundaries
@@ -65,6 +65,7 @@ class System:
         self.w_fac2 = 10 / (7 * np.pi * self.h ** 3)        # constant often used
         self.P_ref = self.B*(self.P_fac**self.gamma - 1)    # boundary pressure to prevent leakages (Pa).
         self.d_ref = self.x_ref * self.dx                   # distance boundary pressure (m)
+        self.g = np.array(self.grav, float)
 
         # expand the range for boundaries
         self.x_inner_min = np.array(self.min_x, float)
@@ -79,7 +80,7 @@ class System:
         """Write this system as a dict, replacing the rand object with its string representation."""
         props = {
             k: v for k, v in vars(self).items()
-            if k not in ['x_max', 'x_min', 'x_inner_min', 'x_inner_max', 'x_range', 'y_range']
+            if k not in ['x_max', 'x_min', 'x_inner_min', 'x_inner_max', 'x_range', 'y_range', 'g']
         }  # arrays bad for json/hash
         return {**props, 'rand': self.rand.as_string()}
 

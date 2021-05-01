@@ -57,7 +57,7 @@ def test_update_adj_totals():
     grid = Grid(system, lambda x, y: 1)
 
     grid.update_grid()
-    grid.update_adjsents()
+    grid.update_adjs()
 
     assert len(grid.particle_list) == 9
     assert len(grid.search_dict) == 1
@@ -75,7 +75,7 @@ def test_update_adj_symetric():
     grid = Grid(system, lambda x, y: 1)
 
     grid.update_grid()
-    grid.update_adjsents()
+    grid.update_adjs()
 
     for particle in grid.particle_list:
         for other in particle._adj:  # for each pair, add to the other side of adj
@@ -87,3 +87,6 @@ def test_update_adj_symetric():
     for l in particle_adjs:
         assert len(set(map(lambda p:p._id, l))) == len(l), 'any pair should only be linked once'
 
+
+# TODO add tests for wall bin allocation
+# TODO add tests for particle saving/loading
