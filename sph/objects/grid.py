@@ -109,88 +109,18 @@ class Grid:
         plt.scatter(self.x_array[:, 0], self.x_array[:, 1], **kwargs)
         plt.gca().set(xlabel='x', ylabel='y', title=f'System {self.sys.parameter_hash[:5]} @{self.sys.t_curr}s')
 
-    def find_neighbours():
-        """."""
-        # TODO make me super fancy optimised
+    def update_adjsents(self):
+        """Half add nieve loops method."""
+        for i, j in self.search_dict:
+            # get all particles in this and adjasent grids
+            relevant = self.search_dict[i, j].copy()
+            for x, y in neighbours(i, j, *self.grid_lims):
+                relevant.extend(self.search_dict[x, y])  # pragma: no cover
 
+            for particle in self.search_dict[i, j]:
+                for other in relevant:
+                    if (particle._id > other._id) and np.linalg.norm(particle.x - other.x) < self.sys.d_srch:
+                        particle._adj.append(other)
 
-    # def neighbour_iterate(self, part):
-    #     """Find all the particles within 2h of the specified particle"""
-    #     part.adj = []  # needs to be reseted every time it's called
-    #     # TODO find a better place to put me
-    #     # TODO find a better way to do the following loop
-    #     for i in range(max(0, part.grid_cord[0] - 1),
-    #                    min(part.grid_cord[0] + 2, self.grid_max[0])):
-    #         for j in range(max(0, part.grid_cord[1] - 1),
-    #                        min(part.grid_cord[1] + 2, self.grid_max[1])):
-    #             for other_part in self.search_grid[i, j]:
-    #                 if part is not other_part:
-    #                     dn = part.x - other_part.x  # ####### use this later
-    #                     dist = np.sqrt(np.sum(dn ** 2))
-    #                     if dist < 2.0 * self.sys.h:
-    #                         part.adj.append(other_part)
-    #     return None
-
-    # def neighbour_iterate_half(self, part):
-    #     """Find upper only particles within 2h of the specified particle
-    #     part: class object
-    #         particle from particles class
-    #     """
-    #     part.adj = []  # needs to be reseted every time it's called
-
-    #     # pick the correct sencil points
-    #     for i in range(max(0, part.grid_cord[0] - 1),
-    #                    min(part.grid_cord[0] + 2, self.grid_max[0])):
-    #         for j in range(max(0, part.grid_cord[1] - 1),
-    #                        min(part.grid_cord[1] + 2, self.grid_max[1])):
-    #             # in the row above
-    #             if (j == part.grid_cord[1] + 1):
-    #                 self.non_central_gridpoint(part, i, j)
-    #             # if in the current row
-    #             elif (j == part.grid_cord[1]):
-    #                 # left point
-    #                 if (i == part.grid_cord[0] - 1):
-    #                     self.non_central_gridpoint(part, i, j)
-    #                 # center point
-    #                 elif (i == part.grid_cord[0]):
-    #                     self.central_gridpoint(part, i, j)
-    #     return None
-
-    # def non_central_gridpoint(self, part, i, j):
-    #     """Find neighbouring grids of particle (excluding its own)
-    #     part: class object
-    #         particle from particles class
-    #     i: index
-    #         x-grid coordinate
-    #     j: index
-    #         y-grid coordinate
-    #     """
-    #     # for all particles in the grid
-    #     for other_part in self.search_grid[i, j]:
-    #         # add it to the adjasent list
-    #         dn = part.x - other_part.x
-    #         dist = np.sqrt(np.sum(dn ** 2))
-    #         if dist < 2.0 * self.sys.h:
-    #             part.adj.append(other_part)
-
-    # def central_gridpoint(self, part, i, j):
-    #     """Find neighbouring grids of particle (excluding its own)
-    #     part: class object
-    #         particle from particles class
-    #     i: index
-    #         x-grid coordinate
-    #     j: index
-    #         y-grid coordinate
-    #     """
-    #     # for all particles in the grid
-    #     for other_part in self.search_grid[i, j]:
-
-    #         # if not the particle
-    #         if part is not other_part:
-    #             # if not below current particle
-    #             if (other_part.id < part.id):
-    #                 # add it to the adjasent list
-    #                 dn = part.x - other_part.x
-    #                 dist = np.sqrt(np.sum(dn ** 2))
-    #                 if dist < 2.0 * self.sys.h:
-    #                     part.adj.append(other_part)
+    # def update_adjsents(self):
+    #     # TODO make me super fancy optimised

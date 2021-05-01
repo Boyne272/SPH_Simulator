@@ -49,3 +49,41 @@ def test_grid_functions(func):
     grid.plot()
     assert plt.gcf().get_axes(), 'a figure should have been plotted'
     print(f'{grid!r} successfully plotted')
+
+
+def test_update_adj_totals():
+    """Ensure a simple box of 9 particles have the correct pair numbers."""
+    system = System(min_x=(0, 0), max_x=[0, 0], dx=0.5, pad_fac=0.5)
+    grid = Grid(system, lambda x, y: 1)
+
+    grid.update_grid()
+    grid.update_adjsents()
+
+    assert len(grid.particle_list) == 9
+    assert len(grid.search_dict) == 1
+    assert len(grid.search_dict[0, 0]) == 9
+
+    particle_adjs = [p._adj for p in grid.particle_list]
+    assert sum(len(l) for l in particle_adjs) == 34, 'there are 36 pairs here but the corners are just far enough apart to be too wide'
+    for l in particle_adjs:
+        assert len(set(map(lambda p:p._id, l))) == len(l), 'any pair should only be linked once'
+
+
+def test_update_adj_symetric():
+    """Ensure a simple box of 9 particles are symetric if we add the others in each pair."""
+    system = System(min_x=(0, 0), max_x=[0, 0], dx=0.5, pad_fac=0.5)
+    grid = Grid(system, lambda x, y: 1)
+
+    grid.update_grid()
+    grid.update_adjsents()
+
+    for particle in grid.particle_list:
+        for other in particle._adj:  # for each pair, add to the other side of adj
+            other._adj.append(particle)
+
+    particle_adjs = [p._adj for p in grid.particle_list]
+    set(len(l) for l in particle_adjs) == {7, 8}, 'there should be all pairs, except for far corners'
+
+    for l in particle_adjs:
+        assert len(set(map(lambda p:p._id, l))) == len(l), 'any pair should only be linked once'
+
