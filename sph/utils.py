@@ -68,3 +68,15 @@ def neighbours(i: int, j: int, i_max: int, j_max: int):
     for x in range(left, right):
         for y in range(lower, upper):
             yield x, y
+
+
+# hashing -------------------------------------------------
+
+from hashlib import md5
+from typing import Union
+
+def md5_hash(string: Union[str, bytes]) -> str:
+    """Return a nicer hash than the python defualt."""
+    if isinstance(string, str):
+        string = string.encode()
+    return md5(string).hexdigest()

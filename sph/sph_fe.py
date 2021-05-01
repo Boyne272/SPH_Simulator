@@ -2,14 +2,15 @@ from itertools import count
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-import sys
+from sys import stdout
 from datetime import datetime
 import pickle as pi
 import warnings
 import time
 
 from sph.animate_results import load_and_set
-from sph.sph import Grid, Particle, SysVals
+from sph.sph import Grid, SysVals
+from sph.objects import Particle
 from sph.samples import step_wave
 
 
@@ -130,21 +131,11 @@ class SPH_main(object):
         within the specified neighbourhood.
     """
 
-    def __init__(self, x_min=(0.0, 0.0), x_max=(1.0, 1.0), dx=0.02):
-
-        # system setup
-        self.sys = SysVals(x_min, x_max, dx)
-
-        self.grid = Grid(self.sys)
-
-        # self.particle_list = []
-        self.grid.search_grid = np.empty((0, 0), object)
-
+    def __init__(self, system: SysVals = None, grid: Grid = None):
+        """Store or create the system and grid objects."""
+        self.sys = system or SysVals(x_min=(0.0, 0.0), x_max=(1.0, 1.0), dx=0.02)
+        self.grid = grid or Grid(self.sys)
         self.file = None
-
-    def initialise_grid(self, func):
-        # TODO remove me
-        self.grid.initialise_grid(func)
 
     def W(self, p_i, p_j_list):
         """
@@ -285,8 +276,8 @@ class SPH_main(object):
 
         count = 1
         while self.sys.t_curr <= tf:
-            sys.stdout.write('\rTime: %.3f' % self.sys.t_curr)
-            sys.stdout.flush()
+            stdout.write('\rTime: %.3f' % self.sys.t_curr)
+            stdout.flush()
 
             # find all the derivatives for each particle
             for i, p_i in enumerate(self.grid.particle_list):
@@ -517,23 +508,26 @@ def sph_simulation(
 
     """
     # set the system
-    system = SPH_main(x_min, x_max, dx=dx, **kwargs)
-    system.initialise_grid(func)
-    system.grid.allocate_to_grid()
-    system.set_up_save(name=file_name, path=path_name)
+    system = SysVals(x_min, x_max, dx=dx, **kwargs)
+    grid = Grid(system)
+    grid.initialise_grid(func)
+    grid.allocate_to_grid()
+
+    solver = SPH_main(system, grid)
+    solver.set_up_save(name=file_name, path=path_name)
 
     # solve the system
     t = time.time()
-    system.timestepping(tf=t_final)
+    solver.timestepping(tf=t_final)
     print('\nTime taken :', time.time()-t)
 
     # animate result
     if ani:
-        ani = load_and_set(system.file.name, ani_key=ani_key or 'Density')
+        ani = load_and_set(solver.file.name, ani_key=ani_key or 'Density')
         ani.animate(ani_step=ani_step or 1)
         plt.show()
 
-    return system
+    return solver
 
 
 if __name__ == '__main__':

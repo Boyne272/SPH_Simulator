@@ -1,83 +1,15 @@
 """SPH simulation objects."""
 
 from collections import Counter
-from itertools import count
 from dataclasses import dataclass, field
+from itertools import count
+import json
 from typing import ClassVar
 
 import numpy as np
 
 from sph.utils import is_divisible_by, has_duplicates, neighbours, rectangle
-
-
-@dataclass(eq=False)
-class Particle(object):
-    """SPH Simulation Particle."""
-
-    sys: 'SysVals' = None  # TODO remove defualt value
-
-    x: np.ndarray = np.zeros(2)  # current position (m)
-    v: np.ndarray = np.zeros(2)  # current velocity (m/s)
-    a: np.ndarray = np.zeros(2)  # current acceleration (m/s^2)
-
-    D: float = 0.  # current rate of change of density (kg/m^3s)
-    P: float = 0.  # current pressure of particle (Pa)
-    m: float = 0.  # mass of the particle (kg)  # TODO validate me
-    rho: float = 0. # density at particles position # TODO validate me
-
-    bound: bool = False  # is a boundary (i.e. fixed) particle
-    adj: list = None #field(default_factory=lambda:list())  # list of adjasent particles
-    list_num: np.ndarray = None  # TODO change me to something more sensible
-
-    id: int = field(default_factory=lambda:next(Particle.n_particles))  # identifier for this particle
-    n_particles: ClassVar = count(0)  # counter for all particles
-
-    def calc_index(self) -> np.ndarray:
-        """Calculates particle's location in the search grid."""
-        self.grid_cord = np.array(
-            (self.x - self.sys.min_x) / (2.0 * self.sys.h),
-            int
-        )
-        return self.grid_cord
-
-    def __post_init__(self):
-        """Validate the inputs."""
-        assert self.x.shape == self.v.shape == self.a.shape == (2,), 'only 2d supported currently'
-        self.calc_index()
-
-    @property
-    def csv_str(self) -> str:
-        """Csv string for loading this particle: ID,R_x,R_y,V_x,V_y,a_x,a_y,m,D,P,Rho,Bound"""
-        return ','.join(map(str, (
-            self.id,
-            self.x[0],
-            self.x[1],
-            self.v[0],
-            self.v[1],
-            self.a[0],
-            self.a[1],
-            self.m,
-            self.D,
-            self.P,
-            self.rho,
-            self.bound
-        )))
-
-    @classmethod
-    def from_csv(string: str) -> "Particle":
-        """The inverse of csv_str operation to make a particle from the csv string."""
-        id_, x0, x1, v0, v1, a0, a1, m, d, p, rho, bound = string.split(',')
-        return Particle(
-            id=id_,
-            x=np.array((x0, x1)),
-            v=np.array((v0, v1)),
-            a=np.array((a0, a1)),
-            m=m,
-            D=d,
-            P=p,
-            rho=rho,
-            bound=bound
-        )
+from sph.objects.particle import Particle
 
 @dataclass(eq=False)
 class SysVals:
@@ -141,9 +73,13 @@ class SysVals:
         """Relying on __repr__ is safer for array comparison."""
         return str(self) == str(other)
 
+    def __hash__(self):
+        """Hash of this system for reference in save files."""
+        raise NotImplementedError()
+
     def to_dict(self) -> dict:
         """Write this system as a dict that can be jsonified."""
-        raise NotImplementedError()
+        return vars(self)
 
     @classmethod
     def from_dict(dict) -> "SysVals":
@@ -256,14 +192,15 @@ class Grid:
         ))
 
     def allocate_to_grid(self):
-        """Allocate all the points to a grid to aid neighbour searching"""
+        """Allocate all the points to a grid."""
         for i, j in self._grid_points:
-            # reset the grid
-            self.search_grid[i, j] = []
+            self.search_grid[i, j] = []  # TODO make dict of lists # reset the grid
 
         for particle in self.particle_list:
-            # calculate all particles positions in the grid
-            i, j = particle.calc_index()
+            i, j = np.array(
+                (particle.x - particle.sys.min_x) / (2.0 * particle.sys.h),
+                int
+            )  # TODO if you change to particle.sys -> self.sys the world collapses ..... why
             self.search_grid[i, j].append(particle)
 
 
