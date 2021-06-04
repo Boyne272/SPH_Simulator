@@ -11,9 +11,9 @@ import numpy as np
 class Particle(object):
     """SPH Simulation Particle."""
 
-    x: np.ndarray = np.zeros(2)  # current position (m)
-    v: np.ndarray = np.zeros(2)  # current velocity (m/s)
-    a: np.ndarray = np.zeros(2)  # current acceleration (m/s^2)
+    x: np.ndarray = None  # current position (m)
+    v: np.ndarray = None  # current velocity (m/s)
+    a: np.ndarray = None  # current acceleration (m/s^2)
 
     D: float = 0.  # current rate of change of density (kg/m^3s)
     P: float = 0.  # current pressure of particle (Pa)
@@ -29,7 +29,10 @@ class Particle(object):
 
     def __post_init__(self):
         """Set up-defualtable attributes and validate the inputs."""
-        self._adj: list["Partile"] = []
+        self.x = self.x if self.x is not None else np.zeros(2)
+        self.v = self.v if self.v is not None else np.zeros(2)
+        self.a = self.a if self.a is not None else np.zeros(2)
+        self._adj: list["Particle"] = []
         self._id = self._id or next(self.particle_counter)
         assert self.x.shape == self.v.shape == self.a.shape == (2,), 'only 2d supported'
 

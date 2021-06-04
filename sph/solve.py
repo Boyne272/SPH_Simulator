@@ -16,16 +16,15 @@ logger = logging.getLogger(__name__)
 # smoothing kernal funtions -------------------------------
 
 
-def W(sys: System, p_i: Particle, p_j: Particle) -> float :
+def W(sys: System, r_ij: float) -> float :
     """Computes the smoothing parameter for a particle pair i, j.
 
     parameters:
         sys: System holding relevant constants
-        p_i: Particle one
-        p_j: Particle two
+        r_ij: distance between the particles
 
     """
-    q = np.linalg.norm(p_i.x - p_j.x) / sys.h
+    q = r_ij / sys.h
     if 0 <= q < 1:
         return sys.w_fac1 * (1 - 1.5*(q**2) + 0.75*(q**3))
     if 1 <= q <= 2:
@@ -33,16 +32,15 @@ def W(sys: System, p_i: Particle, p_j: Particle) -> float :
     return 0.
 
 
-def dW(sys: System, p_i: Particle, p_j: Particle) -> float:
+def dW(sys: System, r_ij: float) -> float:
     """Computes the derivative of the smoothing parameter for a particle pair i, j.
 
     parameters:
         sys: System holding relevant constants
-        p_i: Particle one
-        p_j: Particle two
+        r_ij: distance between the particles
 
     """
-    q = np.linalg.norm(p_i.x - p_j.x) / sys.h
+    q = r_ij / sys.h
     if 0 <= q < 1:
         return sys.w_fac2 * (-3*q + 2.25*(q**2))
     if 1 <= q <= 2:
@@ -50,7 +48,7 @@ def dW(sys: System, p_i: Particle, p_j: Particle) -> float:
     return 0.
 
 
-# stability equatins --------------------------------------
+# stability equations --------------------------------------
 
 
 def compute_pressure(sys: System, p_i: Particle) -> float:
@@ -69,7 +67,8 @@ def rho_smoothing(sys: System, p_i: Particle) -> float:
     p_j_list = p_i._adj + p_i  # must include particle i in this calculation
     num, den = 0., 0.  # TODO check this does not give a zero by zero error
     for p_j in p_j_list:
-        w_j = W(p_i, p_j)
+        assert False, 'why was I never called'
+        w_j = W(sys, p_i, p_j)
         num += w_j
         den += w_j / p_j.rho
     return num / den
@@ -135,7 +134,7 @@ def compute_differentials(sys: System, p_i: Particle, p_j: Particle) -> float:
     v_ij = p_i.v - p_j.v
 
     # compute common values
-    dw = dW(sys, p_i, p_j)
+    dw = dW(sys, r_mod)
     sq_rho_i = p_i.rho**2
     sq_rho_j = p_j.rho**2
 
@@ -165,7 +164,7 @@ def sph_iterate(sys: System, grid: Grid, step_meth: Callable, smooth_rho: bool =
 
     notes:
         - grid management is handled here
-        - grid reassinment is at the start of the iteration (so bins will be invalid on return)
+        - grid re-assignment is at the start of the iteration (so bins will be invalid on return)
         - differential values (e.g. a, D) are left as their computed selves after calling
         - differential values are reset at the start of the iteration
 
@@ -197,12 +196,18 @@ def sph_iterate(sys: System, grid: Grid, step_meth: Callable, smooth_rho: bool =
             v_ij_mag = compute_differentials(sys, p_i, p_j)  # calculates dA and dD
             # TODO update v_ij_max
 
-    logger.info('Applying boundary forces...')
-    for side in grid.walls:  # add boundary force to prevent leakages
-        for i, j in grid.walls[side]:
-            for particle in grid.search_dict[i, j]:
-                if not particle.bound:
-                    lj_boundary_force(sys, particle, side)
+    # metics
+    # logger.info('Differential stats...')
+    # velocities = np.vstack()
+    # logger.info(f'Average particle velocity {np.mean([p_i.v for p_i in grid.particle_list])}')
+    # logger.info(f'Average particle acceleration {np.mean([p_i.a for p_i in grid.particle_list])}')
+
+    # logger.info('Applying boundary forces...')
+    # for side in grid.walls:  # add boundary force to prevent leakages
+    #     for i, j in grid.walls[side]:
+    #         for particle in grid.search_dict[i, j]:
+    #             if not particle.bound:
+    #                 lj_boundary_force(sys, particle, side)
 
         # TODO update a_max, rho_max
 
@@ -226,6 +231,6 @@ def euler_step(p_i: Particle, dt:float) -> None:
 
     """
     if not p_i.bound:
-        p_i.x += dt*p_i.v  # position must be updated first
-        p_i.v += dt*p_i.a
-    p_i.rho += dt*p_i.D
+        p_i.x = p_i.x + dt*p_i.v  # position must be updated first
+        p_i.v = p_i.v + dt*p_i.a
+    p_i.rho = p_i.rho + dt*p_i.D

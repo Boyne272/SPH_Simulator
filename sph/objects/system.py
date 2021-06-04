@@ -61,8 +61,8 @@ class System:
         self.dt = 0.1 * self.h / self.c0                    # reasonable time step TODO add update method
         self.d_srch = 2 * self.h                            # search radius
         self.B = self.rho0 * self.c0**2 / self.gamma        # pressure constant (Pa)
-        self.w_fac1 = 10 / (7 * np.pi * self.h ** 2)        # constant often used
-        self.w_fac2 = 10 / (7 * np.pi * self.h ** 3)        # constant often used
+        self.w_fac1 = 10 / (7 * np.pi * (self.h**2))        # constant often used
+        self.w_fac2 = 10 / (7 * np.pi * (self.h**3))        # constant often used
         self.P_ref = self.B*(self.P_fac**self.gamma - 1)    # boundary pressure to prevent leakages (Pa).
         self.d_ref = self.x_ref * self.dx                   # distance boundary pressure (m)
         self.g = np.array(self.grav, float)
